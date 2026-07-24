@@ -139,6 +139,10 @@ static void M_SaveGame(int16_t choice);
 static void M_Options(int16_t choice);
 static void M_EndGame(int16_t choice);
 static void M_QuitDOOM(int16_t choice);
+#if defined __NGDEVKIT__
+static void M_ReadThis(int16_t choice);
+static void M_FinishReadThis(int16_t choice);
+#endif
 
 
 static void M_ChangeMessages(int16_t choice);
@@ -156,6 +160,9 @@ static void M_SaveSelect(int16_t choice);
 static void M_ReadSaveStrings(void);
 
 static void M_DrawMainMenu(void);
+#if defined __NGDEVKIT__
+static void M_DrawReadThis(void);
+#endif
 static void M_DrawNewGame(void);
 static void M_DrawOptions(void);
 static void M_DrawSound(void);
@@ -227,6 +234,9 @@ enum
   loadgame,
   savegame,
 #endif
+#if defined __NGDEVKIT__
+  readthis,
+#endif
 #if !defined DISABLE_QUIT_DOOM
   quitdoom,
 #endif
@@ -247,6 +257,9 @@ static const menuitem_t MainMenu[]=
 #if !defined DISABLE_SAVE_GAME
   {1,"Load game", M_LoadGame},
   {1,"Save game", M_SaveGame},
+#endif
+#if defined __NGDEVKIT__
+  {1,"Read This!", M_ReadThis},
 #endif
 #if !defined DISABLE_QUIT_DOOM
   {1,"Quit Game", M_QuitDOOM}
@@ -269,14 +282,54 @@ static const menu_t MainDef =
 static void M_DrawMainMenu(void)
 {
 	#if defined __NGDEVKIT__
-	static const uint8_t item_rows[] = {10, 12};
+	static const uint8_t item_rows[] = {10, 12, 14};
 	V_DrawFixPatch(12, item_rows[0], doom_menu_ngame, DOOM_MENU_NGAME_COLS, DOOM_MENU_NGAME_ROWS);
 	V_DrawFixPatch(12, item_rows[1], doom_menu_option, DOOM_MENU_OPTION_COLS, DOOM_MENU_OPTION_ROWS);
+	V_DrawFixPatch(12, item_rows[2], doom_menu_rdthis, DOOM_MENU_RDTHIS_COLS, DOOM_MENU_RDTHIS_ROWS);
 	M_DrawNeoGeoSkull(8, item_rows[itemOn]);
 #else
 	V_DrawString((VIEWWINDOWWIDTH - 4) / 2, 1, D_YELLOW, "DOOM");
 #endif
 }
+
+
+#if defined __NGDEVKIT__
+static const menuitem_t ReadMenu[] =
+{
+	{1, "", M_FinishReadThis}
+};
+
+static const menu_t ReadDef =
+{
+	1,
+	ReadMenu,
+	M_DrawReadThis,
+	0, 0,
+	&MainDef, readthis,
+};
+
+static void M_DrawReadThis(void)
+{
+	static int16_t help2num = -1;
+
+	if (help2num < 0)
+		help2num = W_GetNumForName("HELP2");
+	V_DrawRawFullScreen(help2num);
+}
+
+static void M_ReadThis(int16_t choice)
+{
+	UNUSED(choice);
+	M_SetupNextMenu(&ReadDef);
+}
+
+static void M_FinishReadThis(int16_t choice)
+{
+	UNUSED(choice);
+	M_SetupNextMenu(&MainDef);
+	itemOn = readthis;
+}
+#endif
 
 
 // numerical values for the New Game menu items
@@ -1171,7 +1224,9 @@ static boolean M_NeoGeoMenuNeedsDraw(void)
 			|| last_sfx_volume != snd_SfxVolume
 			|| last_music_volume != snd_MusicVolume
 			|| last_quality != quality));
-	redraw = rebuild || (!messageToPrint && last_skull != whichSkull);
+	redraw = rebuild
+		|| (!messageToPrint && currentMenu == &ReadDef)
+		|| (!messageToPrint && last_skull != whichSkull);
 
 	if (rebuild)
 		I_InitScreenPage();

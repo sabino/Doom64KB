@@ -3,3 +3,5 @@
 /neogeo/DOOM64KB.elf
 /WC
 /neogeo/assets/generated
+/dist/
+__pycache__/

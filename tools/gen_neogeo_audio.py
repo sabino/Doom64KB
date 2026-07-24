@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Doom YM2610 audio assets directly from a retail IWAD."""
+"""Generate Doom YM2610 audio assets directly from a Doom IWAD."""
 
 from __future__ import annotations
 
@@ -36,7 +36,9 @@ OUTPUT_NAMES = (
     "doom_audio_report.txt",
 )
 
-KNOWN_RETAIL_IWADS = {
+KNOWN_IWADS = {
+    "1d7d43be501e67d927e415e0b8f3e29c3bf33075e859721816f652a526cac771":
+        "Doom v1.9 shareware",
     "ff2c301b8719465a6e386a512bfa319931b7f64ea517d337c5a47afe03951902":
         "Doom v1.9 registered",
 }
@@ -83,7 +85,7 @@ class Wad:
         self.kind = self.data[:4]
         if self.kind != b"IWAD":
             kind = self.kind.decode("ascii", "replace")
-            raise ValueError(f"{path}: expected a retail IWAD, found {kind!r}")
+            raise ValueError(f"{path}: expected a Doom IWAD, found {kind!r}")
 
         lump_count, directory_offset = struct.unpack_from("<II", self.data, 4)
         if lump_count > 1_000_000:
@@ -916,7 +918,7 @@ def generate(args: argparse.Namespace) -> None:
     fluidsynth, fluidsynth_name = load_fluidsynth()
     wad = Wad(iwad_path)
     iwad_sha256 = sha256_bytes(wad.data)
-    identity = KNOWN_RETAIL_IWADS.get(iwad_sha256, "unrecognized retail IWAD")
+    identity = KNOWN_IWADS.get(iwad_sha256, "unrecognized Doom IWAD")
 
     report: list[str] = [
         f"IWAD: {iwad_path}",
@@ -1042,7 +1044,7 @@ def generate(args: argparse.Namespace) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Extract authentic Doom SFX and MUS scores from a retail IWAD, "
+            "Extract authentic Doom SFX and MUS scores from a Doom IWAD, "
             "render music with libFluidSynth, and build YM2610 metadata/V-ROM."
         )
     )

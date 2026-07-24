@@ -156,7 +156,7 @@ typedef enum
 	STATIC_BACKGROUND_NONE,
 	STATIC_BACKGROUND_TITLE,
 	STATIC_BACKGROUND_WIMAP,
-	STATIC_BACKGROUND_HELP
+	STATIC_BACKGROUND_HELP2
 } static_background_t;
 
 typedef struct
@@ -359,7 +359,7 @@ static void NG_UploadStaticBackgroundPalettes(static_background_t background)
 		src = &doom_wimap_palettes[0][0];
 		palette_count = DOOM_WIMAP_PALETTE_COUNT;
 	}
-	else if (background == STATIC_BACKGROUND_HELP)
+	else if (background == STATIC_BACKGROUND_HELP2)
 	{
 		src = &doom_help_palettes[0][0];
 		palette_count = DOOM_HELP_PALETTE_COUNT;
@@ -617,7 +617,7 @@ static void NG_ConfigureStaticBackgroundSprites(static_background_t background)
 		tile_base = DOOM_WIMAP_TILE_BASE;
 		palette_map = doom_wimap_palette_map;
 	}
-	else if (background == STATIC_BACKGROUND_HELP)
+	else if (background == STATIC_BACKGROUND_HELP2)
 	{
 		tile_base = DOOM_HELP_TILE_BASE;
 		palette_map = doom_help_palette_map;
@@ -1183,6 +1183,21 @@ void V_DrawBackground(int16_t backgroundnum)
 }
 
 
+static void NG_RequestStaticBackground(
+	static_background_t background,
+	const uint16_t *wipe_source)
+{
+	_s_static_background_wipe_source = wipe_source;
+	_s_static_background_requested = background;
+	if (!_s_fix_wipe_active && _s_static_background_active == STATIC_BACKGROUND_NONE)
+	{
+		NG_BeginMainVramWrite();
+		NG_ClearFixOverlay();
+		NG_EndMainVramWrite();
+	}
+}
+
+
 void V_DrawRawFullScreen(int16_t num)
 {
 	static int16_t titlepicnum = -1;
@@ -1198,26 +1213,14 @@ void V_DrawRawFullScreen(int16_t num)
 	if (num == titlepicnum || num == wimap0num || num == help2num)
 	{
 		if (num == titlepicnum)
-		{
-			_s_static_background_wipe_source = doom_title_wipe_map;
-			_s_static_background_requested = STATIC_BACKGROUND_TITLE;
-		}
+			NG_RequestStaticBackground(
+				STATIC_BACKGROUND_TITLE, doom_title_wipe_map);
 		else if (num == wimap0num)
-		{
-			_s_static_background_wipe_source = doom_wimap_wipe_map;
-			_s_static_background_requested = STATIC_BACKGROUND_WIMAP;
-		}
+			NG_RequestStaticBackground(
+				STATIC_BACKGROUND_WIMAP, doom_wimap_wipe_map);
 		else
-		{
-			_s_static_background_wipe_source = doom_help_wipe_map;
-			_s_static_background_requested = STATIC_BACKGROUND_HELP;
-		}
-		if (!_s_fix_wipe_active && _s_static_background_active == STATIC_BACKGROUND_NONE)
-		{
-			NG_BeginMainVramWrite();
-			NG_ClearFixOverlay();
-			NG_EndMainVramWrite();
-		}
+			NG_RequestStaticBackground(
+				STATIC_BACKGROUND_HELP2, doom_help_wipe_map);
 		return;
 	}
 

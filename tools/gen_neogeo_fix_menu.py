@@ -32,6 +32,7 @@ WIPE_TILE_IDS = frozenset(slot << 8 for slot in range(16))
 PATCH_NAMES = (
     "M_NGAME",
     "M_OPTION",
+    "M_RDTHIS",
     "M_NEWG",
     "M_SKILL",
     "M_JKILL",
@@ -104,7 +105,7 @@ COMPACT_INTERMISSION_PATCHES = frozenset((
 
 
 def neo_color(rgb: tuple[int, int, int]) -> int:
-    """Match jWadUtil's Neo Geo color packing, including the dark bit."""
+    """Match the compact Neo Geo color packing, including the dark bit."""
     r8, g8, b8 = rgb
     r, g, b = r8 // 8, g8 // 8, b8 // 8
     dark = 1 ^ (int(54.213 * r8 + 182.376 * g8 + 18.411 * b8) & 1)

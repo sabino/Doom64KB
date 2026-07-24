@@ -2099,7 +2099,7 @@ static void R_ProjectSprite (mobj_t __far* thing, int16_t lightlevel)
 
     /* calculate edges of the shape
      * cph 2003/08/1 - fraggle points out that this offset must be flipped
-     * if the sprite is flipped; e.g. FreeDoom imp is messed up by this. */
+     * if the sprite is flipped; some replacement IWAD sprites expose this. */
     if (flip)
         tx -= ((int32_t)(patch->width - patch->leftoffset)) << FRACBITS;
     else
