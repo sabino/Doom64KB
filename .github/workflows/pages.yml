@@ -15,7 +15,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   RELEASE_TAG: v20260724-shareware-fbneo-web
   RELEASE_ARCHIVE: Doom64KB-NeoGeo-Shareware-FBNeo-Web-20260724.zip
-  RELEASE_SHA256: ee176b2f135378c55266c5bafd8c2898ddf76229ca6fdfced9d875920ea09d1a
+  RELEASE_SHA256: b093b126f2b566d4e64fcbb6ed073185a73f73591af1f2c5ea2b86d9f6b99ee3
 
 concurrency:
   group: github-pages
