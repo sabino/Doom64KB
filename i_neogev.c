@@ -81,8 +81,17 @@ extern int16_t CENTERY;
 
 #define MICROFB_DISPLAY_W 320u
 #define MICROFB_DISPLAY_H 224u
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+#define MICROFB_COLUMN_CHUNKS 4u
+#define MICROFB_SAFE_COLUMNS 76u
+#define MICROFB_SAFE_BANKS (MICROFB_COLUMN_CHUNKS + 1u)
+#define MICROFB_SPRITES_PER_BANK MICROFB_SAFE_COLUMNS
+#define BACKGROUND_ROW_CHUNKS 2u
+#else
 #define MICROFB_COLUMN_CHUNKS 2u
 #define MICROFB_FRAMEBUFFER_SETS 2u
+#define BACKGROUND_ROW_CHUNKS 1u
+#endif
 #define MICROFB_SPRITE_BASE 1u
 #define MICROFB_X_WORD(x) (((uint16_t)(x)) << 7)
 #define MICROFB_PALETTE_ATTR(pal) ((uint16_t)(pal) << 8)
@@ -114,14 +123,27 @@ typedef enum
 #endif
 
 #define MICROFB_CHUNK_CELLS (VIEWWINDOWHEIGHT / MICROFB_COLUMN_CHUNKS)
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+#define MICROFB_SPRITE_COUNT (MICROFB_SAFE_BANKS * MICROFB_SPRITES_PER_BANK)
+#else
 #define MICROFB_SPRITES_PER_SET (VIEWWINDOWWIDTH * MICROFB_COLUMN_CHUNKS)
 #define MICROFB_SPRITE_COUNT (MICROFB_SPRITES_PER_SET * MICROFB_FRAMEBUFFER_SETS)
+#endif
 
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+#define BACKGROUND_SPRITE_BASE MICROFB_SPRITE_BASE
+#else
 #define BACKGROUND_SPRITE_BASE (MICROFB_SPRITE_BASE + MICROFB_SPRITE_COUNT)
-#define BACKGROUND_SPRITE_COUNT DOOM_BACKGROUND_COLUMNS
+#endif
+#define BACKGROUND_SPRITE_COUNT (DOOM_BACKGROUND_COLUMNS * BACKGROUND_ROW_CHUNKS)
 #define BACKGROUND_X_OFFSET 8u
 #define BACKGROUND_SHRINK_WORD 0x077fu
 #define BACKGROUND_TILE_PX 8u
+#define BACKGROUND_CHUNK_ROWS (DOOM_BACKGROUND_ROWS / BACKGROUND_ROW_CHUNKS)
+
+#if (DOOM_BACKGROUND_ROWS % BACKGROUND_ROW_CHUNKS) != 0
+#error Neo Geo static background rows must divide evenly into sprite chunks
+#endif
 
 #if MICROFB_CHUNK_CELLS > 32
 #error Neo Geo sprite microframebuffer chunk cannot exceed 32 source tiles
@@ -174,7 +196,11 @@ static const microfb_mode_t microfb_modes[] =
 {
 	{ "Low", 8, 40, 28, 0x077fu, 0, 0 },
 	{ "Medium", 6, 53, 37, 0x055fu, 1, 1 },
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+	{ "High", 4, MICROFB_SAFE_COLUMNS, 56, 0x033fu, 8, 0 }
+#else
 	{ "High", 4, 80, 56, 0x033fu, 0, 0 }
+#endif
 };
 
 #define MICROFB_MODE_COUNT (sizeof(microfb_modes) / sizeof(microfb_modes[0]))
@@ -189,7 +215,15 @@ static uint16_t _s_color_to_scb1[256];
 _Static_assert(sizeof(_s_color_to_scb1) == 512u, "Neo Geo color map must stay 512 bytes");
 _Static_assert((MICROFB_TILE_BASE & 0x00ffu) == 0u,
 	"packed SCB1 upload requires a tile-page-aligned base");
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+static uint8_t _s_visible_sprite_bank[MICROFB_COLUMN_CHUNKS];
+static uint8_t _s_staging_sprite_bank;
+static uint8_t _s_configured_microfb_chunk[MICROFB_SAFE_BANKS];
+static uint8_t _s_configured_microfb_mode[MICROFB_SAFE_BANKS];
+#else
 static volatile uint8_t _s_visible_sprite_set;
+static uint8_t _s_configured_microfb_mode[MICROFB_FRAMEBUFFER_SETS];
+#endif
 static volatile uint8_t _s_swap_pending;
 static volatile uint8_t _s_swap_target_set;
 static volatile uint8_t _s_main_vram_write_depth;
@@ -199,7 +233,6 @@ static fix_target_kind_t _s_fix_target_kind;
 static const uint16_t *_s_fix_target;
 static uint8_t _s_microfb_mode_index;
 static uint8_t _s_pending_microfb_mode_index;
-static uint8_t _s_configured_microfb_mode[2];
 static static_background_t _s_static_background_configured;
 static static_background_t _s_static_background_active;
 static static_background_t _s_static_background_requested;
@@ -262,10 +295,17 @@ static void NG_WaitPendingSpriteSwap(void)
 }
 
 
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+static uint16_t NG_MicroSpriteBankIndex(uint16_t bank, uint16_t x)
+{
+	return MICROFB_SPRITE_BASE + bank * MICROFB_SPRITES_PER_BANK + x;
+}
+#else
 static uint16_t NG_MicroSpriteIndex(uint16_t set, uint16_t chunk, uint16_t x)
 {
 	return MICROFB_SPRITE_BASE + set * MICROFB_SPRITES_PER_SET + chunk * VIEWWINDOWWIDTH + x;
 }
+#endif
 
 
 static const microfb_mode_t *NG_MicroFramebufferMode(void)
@@ -525,6 +565,57 @@ static void NG_ClearSpriteState(void)
 }
 
 
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+static void NG_ConfigureMicroSpriteBank(uint16_t bank, uint16_t chunk)
+{
+	const microfb_mode_t *mode = NG_MicroFramebufferMode();
+	const uint16_t chunk_rows = NG_MicroFramebufferChunkRows(mode, chunk);
+
+	*REG_VRAMMOD = 0x200;
+	for (uint16_t x = 0; x < MICROFB_SPRITES_PER_BANK; x++)
+	{
+		const uint16_t sprite = NG_MicroSpriteBankIndex(bank, x);
+		const uint8_t active = x < mode->cols && chunk_rows != 0u;
+
+		*REG_VRAMADDR = ADDR_SCB2 + sprite;
+		*REG_VRAMRW = active ? mode->shrink_word : 0u;
+		*REG_VRAMRW = active && x ? MICROFB_STICKY_BIT : 0u;
+		*REG_VRAMRW = active
+			? MICROFB_X_WORD(mode->x_offset + x * mode->cell_px)
+			: 0u;
+	}
+
+	_s_configured_microfb_mode[bank] = _s_microfb_mode_index;
+	_s_configured_microfb_chunk[bank] = chunk;
+}
+
+
+static void NG_SetMicroSpriteBankVisible(
+	uint16_t bank,
+	uint16_t chunk,
+	uint8_t visible)
+{
+	const microfb_mode_t *mode = NG_MicroFramebufferMode();
+	const uint16_t row_base = chunk * MICROFB_CHUNK_CELLS;
+	const uint16_t chunk_rows = NG_MicroFramebufferChunkRows(mode, chunk);
+	const uint16_t y = mode->y_offset + row_base * mode->cell_px;
+	const uint16_t height_word = visible && chunk_rows
+		? NG_SpriteYWord(y, chunk_rows)
+		: 0u;
+
+	*REG_VRAMMOD = 1;
+	*REG_VRAMADDR = ADDR_SCB3 + NG_MicroSpriteBankIndex(bank, 0);
+	*REG_VRAMRW = height_word;
+}
+
+
+static void NG_SetVisibleMicroSpriteBanks(uint8_t visible)
+{
+	for (uint16_t chunk = 0; chunk < MICROFB_COLUMN_CHUNKS; chunk++)
+		NG_SetMicroSpriteBankVisible(
+			_s_visible_sprite_bank[chunk], chunk, visible);
+}
+#else
 static void NG_ConfigureMicroSpriteSet(uint16_t set)
 {
 	const microfb_mode_t *mode = NG_MicroFramebufferMode();
@@ -559,16 +650,22 @@ static void NG_SetMicroSpriteSetVisible(uint16_t set, uint8_t visible)
 		const uint16_t row_base = chunk * MICROFB_CHUNK_CELLS;
 		const uint16_t chunk_rows = NG_MicroFramebufferChunkRows(mode, chunk);
 		const uint16_t y = mode->y_offset + row_base * mode->cell_px;
-		const uint16_t height_word = visible && chunk_rows ? NG_SpriteYWord(y, chunk_rows) : 0u;
+		const uint16_t height_word = visible && chunk_rows
+			? NG_SpriteYWord(y, chunk_rows)
+			: 0u;
 
 		*REG_VRAMADDR = ADDR_SCB3 + NG_MicroSpriteIndex(set, chunk, 0);
 		*REG_VRAMRW = height_word;
 	}
 }
+#endif
 
 
 void I_NeoGeoVBlank(void)
 {
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+	return;
+#else
 	if (!_s_swap_pending || _s_main_vram_write_depth)
 		return;
 
@@ -578,6 +675,7 @@ void I_NeoGeoVBlank(void)
 	_s_visible_sprite_set = next_sprite_set;
 	__asm__ volatile ("" ::: "memory");
 	_s_swap_pending = false;
+#endif
 }
 
 
@@ -585,8 +683,9 @@ static void NG_InitMicroSprites(void)
 {
 	NG_ClearSpriteState();
 
-	/* Two complete sprite-framebuffer sets are reserved.  Only one set is visible
-	 * while the next frame is uploaded into the hidden set.
+	/*
+	 * Native builds reserve two complete framebuffers.  The FBNeo profile
+	 * reserves four visible short-strip banks plus one staging bank.
 	 */
 	*REG_VRAMMOD = 1;
 	for (uint16_t s = 0; s < MICROFB_SPRITE_COUNT; s++)
@@ -600,11 +699,29 @@ static void NG_InitMicroSprites(void)
 		}
 	}
 
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+	for (uint16_t bank = 0; bank < MICROFB_SAFE_BANKS; bank++)
+	{
+		_s_configured_microfb_mode[bank] = 0xffu;
+		_s_configured_microfb_chunk[bank] = 0xffu;
+	}
+
+	for (uint16_t chunk = 0; chunk < MICROFB_COLUMN_CHUNKS; chunk++)
+	{
+		_s_visible_sprite_bank[chunk] = chunk;
+		NG_ConfigureMicroSpriteBank(chunk, chunk);
+		NG_SetMicroSpriteBankVisible(chunk, chunk, true);
+	}
+	_s_staging_sprite_bank = MICROFB_COLUMN_CHUNKS;
+	NG_SetMicroSpriteBankVisible(_s_staging_sprite_bank, 0, false);
+#else
 	_s_visible_sprite_set = 0;
-	NG_ConfigureMicroSpriteSet(0);
-	NG_ConfigureMicroSpriteSet(1);
+	for (uint16_t set = 0; set < MICROFB_FRAMEBUFFER_SETS; set++)
+		NG_ConfigureMicroSpriteSet(set);
 	NG_SetMicroSpriteSetVisible(0, true);
-	NG_SetMicroSpriteSetVisible(1, false);
+	for (uint16_t set = 1; set < MICROFB_FRAMEBUFFER_SETS; set++)
+		NG_SetMicroSpriteSetVisible(set, false);
+#endif
 }
 
 
@@ -624,42 +741,62 @@ static void NG_ConfigureStaticBackgroundSprites(static_background_t background)
 	}
 
 	*REG_VRAMMOD = 1;
-	for (uint16_t col = 0; col < DOOM_BACKGROUND_COLUMNS; col++)
+	for (uint16_t chunk = 0; chunk < BACKGROUND_ROW_CHUNKS; chunk++)
 	{
-		const uint16_t sprite = BACKGROUND_SPRITE_BASE + col;
-		*REG_VRAMADDR = ADDR_SCB1 + (sprite * 64u);
-		for (uint16_t row = 0; row < DOOM_BACKGROUND_ROWS; row++)
+		const uint16_t row_base = chunk * BACKGROUND_CHUNK_ROWS;
+		for (uint16_t col = 0; col < DOOM_BACKGROUND_COLUMNS; col++)
 		{
-			const uint16_t palette = palette_map[row * DOOM_BACKGROUND_COLUMNS + col];
-			*REG_VRAMRW = tile_base + row * DOOM_BACKGROUND_COLUMNS + col;
-			*REG_VRAMRW = MICROFB_PALETTE_ATTR(
-				TITLE_SPRITE_PALETTE_BASE + palette);
-		}
-		for (uint16_t row = DOOM_BACKGROUND_ROWS; row < 32; row++)
-		{
-			*REG_VRAMRW = MICROFB_TILE_BLANK;
-			*REG_VRAMRW = 0;
-		}
+			const uint16_t sprite =
+				BACKGROUND_SPRITE_BASE + chunk * DOOM_BACKGROUND_COLUMNS + col;
+			*REG_VRAMADDR = ADDR_SCB1 + (sprite * 64u);
+			for (uint16_t row = 0; row < BACKGROUND_CHUNK_ROWS; row++)
+			{
+				const uint16_t source_row = row_base + row;
+				const uint16_t palette =
+					palette_map[source_row * DOOM_BACKGROUND_COLUMNS + col];
+				*REG_VRAMRW =
+					tile_base + source_row * DOOM_BACKGROUND_COLUMNS + col;
+				*REG_VRAMRW = MICROFB_PALETTE_ATTR(
+					TITLE_SPRITE_PALETTE_BASE + palette);
+			}
+			for (uint16_t row = BACKGROUND_CHUNK_ROWS; row < 32; row++)
+			{
+				*REG_VRAMRW = MICROFB_TILE_BLANK;
+				*REG_VRAMRW = 0;
+			}
 
-		*REG_VRAMMOD = 0x200;
-		*REG_VRAMADDR = ADDR_SCB2 + sprite;
-		*REG_VRAMRW = BACKGROUND_SHRINK_WORD;
-		*REG_VRAMRW = 0;
-		*REG_VRAMRW = MICROFB_X_WORD(BACKGROUND_X_OFFSET + col * BACKGROUND_TILE_PX);
-		*REG_VRAMMOD = 1;
+			*REG_VRAMMOD = 0x200;
+			*REG_VRAMADDR = ADDR_SCB2 + sprite;
+			*REG_VRAMRW = BACKGROUND_SHRINK_WORD;
+			*REG_VRAMRW = 0;
+			*REG_VRAMRW =
+				MICROFB_X_WORD(BACKGROUND_X_OFFSET + col * BACKGROUND_TILE_PX);
+			*REG_VRAMMOD = 1;
+		}
 	}
 
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+	_s_configured_microfb_mode[0] = 0xffu;
+	_s_configured_microfb_chunk[0] = 0xffu;
+#endif
 	_s_static_background_configured = background;
 }
 
 
 static void NG_SetStaticBackgroundSpritesVisible(uint8_t visible)
 {
-	const uint16_t height_word = visible ? NG_SpriteYWord(0, DOOM_BACKGROUND_ROWS) : 0;
 	*REG_VRAMMOD = 1;
-	*REG_VRAMADDR = ADDR_SCB3 + BACKGROUND_SPRITE_BASE;
-	for (uint16_t col = 0; col < BACKGROUND_SPRITE_COUNT; col++)
-		*REG_VRAMRW = height_word;
+	for (uint16_t chunk = 0; chunk < BACKGROUND_ROW_CHUNKS; chunk++)
+	{
+		const uint16_t y = chunk * BACKGROUND_CHUNK_ROWS * BACKGROUND_TILE_PX;
+		const uint16_t height_word = visible
+			? NG_SpriteYWord(y, BACKGROUND_CHUNK_ROWS)
+			: 0;
+		*REG_VRAMADDR =
+			ADDR_SCB3 + BACKGROUND_SPRITE_BASE + chunk * DOOM_BACKGROUND_COLUMNS;
+		for (uint16_t col = 0; col < DOOM_BACKGROUND_COLUMNS; col++)
+			*REG_VRAMRW = height_word;
+	}
 }
 
 
@@ -721,12 +858,23 @@ void V_SetSTPalette(void)
 	"move.w %%d1,%[vramrw]@\n\t"
 
 
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+static void NG_UploadMicroFramebufferBank(uint8_t bank, uint8_t requested_chunk)
+#else
 static void NG_UploadMicroFramebuffer(uint8_t set)
+#endif
 {
 	const microfb_mode_t *mode = NG_MicroFramebufferMode();
 
 	*REG_VRAMMOD = 1;
-	for (uint16_t chunk = 0; chunk < MICROFB_COLUMN_CHUNKS; chunk++)
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+	const uint16_t first_chunk = requested_chunk;
+	const uint16_t end_chunk = requested_chunk + 1u;
+#else
+	const uint16_t first_chunk = 0;
+	const uint16_t end_chunk = MICROFB_COLUMN_CHUNKS;
+#endif
+	for (uint16_t chunk = first_chunk; chunk < end_chunk; chunk++)
 	{
 		const uint16_t row_base = chunk * MICROFB_CHUNK_CELLS;
 		const uint16_t chunk_rows = NG_MicroFramebufferChunkRows(mode, chunk);
@@ -739,7 +887,11 @@ static void NG_UploadMicroFramebuffer(uint8_t set)
 		{
 			for (uint16_t x = 0; x < mode->cols; x++)
 			{
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+				const uint16_t sprite = NG_MicroSpriteBankIndex(bank, x);
+#else
 				const uint16_t sprite = NG_MicroSpriteIndex(set, chunk, x);
+#endif
 				const uint8_t *src = MICROFB_COLUMN(x) + row_base;
 
 				*REG_VRAMADDR = ADDR_SCB1 + (sprite * 64u);
@@ -760,7 +912,11 @@ static void NG_UploadMicroFramebuffer(uint8_t set)
 		{
 			for (uint16_t x = 0; x < mode->cols; x++)
 			{
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+				const uint16_t sprite = NG_MicroSpriteBankIndex(bank, x);
+#else
 				const uint16_t sprite = NG_MicroSpriteIndex(set, chunk, x);
+#endif
 				const uint8_t *src = MICROFB_COLUMN(x) + row_base;
 
 				*REG_VRAMADDR = ADDR_SCB1 + (sprite * 64u);
@@ -804,6 +960,51 @@ const char *I_NeoGeoSpriteQualityName(void)
 }
 
 
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+static uint16_t NG_ActiveMicroFramebufferChunks(void)
+{
+	const microfb_mode_t *mode = NG_MicroFramebufferMode();
+	return (mode->rows + MICROFB_CHUNK_CELLS - 1u) / MICROFB_CHUNK_CELLS;
+}
+
+
+static void NG_PrepareStagingMicroSpriteBank(uint16_t chunk)
+{
+	const uint8_t bank = _s_staging_sprite_bank;
+
+	if (_s_configured_microfb_mode[bank] != _s_microfb_mode_index
+		|| _s_configured_microfb_chunk[bank] != chunk)
+	{
+		NG_ConfigureMicroSpriteBank(bank, chunk);
+	}
+	NG_UploadMicroFramebufferBank(bank, chunk);
+}
+
+
+static void NG_SwapStagingMicroSpriteBank(uint16_t chunk)
+{
+	const uint8_t old_bank = _s_visible_sprite_bank[chunk];
+	const uint8_t next_bank = _s_staging_sprite_bank;
+
+	NG_SetMicroSpriteBankVisible(old_bank, chunk, false);
+	NG_SetMicroSpriteBankVisible(next_bank, chunk, true);
+	_s_visible_sprite_bank[chunk] = next_bank;
+	_s_staging_sprite_bank = old_bank;
+}
+
+
+static int16_t NG_ChunkUsingMicroSpriteBank(uint8_t bank)
+{
+	for (uint16_t chunk = 0; chunk < MICROFB_COLUMN_CHUNKS; chunk++)
+	{
+		if (_s_visible_sprite_bank[chunk] == bank)
+			return chunk;
+	}
+	return -1;
+}
+#endif
+
+
 void I_FinishUpdate(void)
 {
 	/*
@@ -813,6 +1014,100 @@ void I_FinishUpdate(void)
 	NG_WaitPendingSpriteSwap();
 	NG_BeginMainVramWrite();
 
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+	if (_s_static_background_requested != STATIC_BACKGROUND_NONE)
+	{
+		NG_WaitVBlankStart();
+		NG_ApplyPendingPalettes();
+		if (_s_static_background_active == STATIC_BACKGROUND_NONE)
+			NG_SetVisibleMicroSpriteBanks(false);
+		else
+			NG_SetStaticBackgroundSpritesVisible(false);
+
+		/*
+		 * Static pages share bank 0 with the gameplay framebuffer.  Rebuild
+		 * them on every request because gameplay may have reused that bank.
+		 */
+		NG_UploadStaticBackgroundPalettes(_s_static_background_requested);
+		NG_ConfigureStaticBackgroundSprites(_s_static_background_requested);
+		NG_SetStaticBackgroundSpritesVisible(true);
+		_s_static_background_active = _s_static_background_requested;
+		NG_UploadFixOverlay();
+		_s_static_background_requested = STATIC_BACKGROUND_NONE;
+		NG_ApplyMicroFramebufferMode(_s_pending_microfb_mode_index);
+		NG_EndMainVramWrite();
+		return;
+	}
+
+	const uint16_t active_chunks = NG_ActiveMicroFramebufferChunks();
+	uint16_t first_chunk = 0;
+	int16_t published_chunk = -1;
+
+	if (_s_static_background_active != STATIC_BACKGROUND_NONE)
+	{
+		/*
+		 * Static pages overwrite bank 0.  If that bank belonged to an active
+		 * gameplay band, replace it before exposing the other retained bands.
+		 */
+		const int16_t overwritten_chunk = NG_ChunkUsingMicroSpriteBank(0);
+		if (overwritten_chunk >= 0 && overwritten_chunk < active_chunks)
+			first_chunk = overwritten_chunk;
+		else
+			first_chunk = 0;
+		NG_PrepareStagingMicroSpriteBank(first_chunk);
+
+		NG_WaitVBlankStart();
+		NG_ApplyPendingPalettes();
+		NG_SetStaticBackgroundSpritesVisible(false);
+		_s_static_background_active = STATIC_BACKGROUND_NONE;
+		_s_static_background_configured = STATIC_BACKGROUND_NONE;
+
+		NG_SwapStagingMicroSpriteBank(first_chunk);
+		published_chunk = first_chunk;
+		NG_SetVisibleMicroSpriteBanks(true);
+
+		for (uint16_t chunk = 0; chunk < MICROFB_COLUMN_CHUNKS; chunk++)
+		{
+			if (chunk >= active_chunks)
+				NG_SetMicroSpriteBankVisible(
+					_s_visible_sprite_bank[chunk], chunk, false);
+		}
+
+		first_chunk = (first_chunk + 1u) % active_chunks;
+	}
+
+	for (uint16_t n = 0; n < active_chunks; n++)
+	{
+		const uint16_t chunk = (first_chunk + n) % active_chunks;
+
+		/*
+		 * The static-page recovery above already published its overwritten
+		 * band.  Do not upload that same band twice in this frame.
+		 */
+		if (chunk == published_chunk)
+			continue;
+
+		NG_PrepareStagingMicroSpriteBank(chunk);
+		NG_WaitVBlankStart();
+		if (n == 0)
+		{
+			NG_ApplyPendingPalettes();
+			for (uint16_t hidden = active_chunks;
+				hidden < MICROFB_COLUMN_CHUNKS;
+				hidden++)
+			{
+				NG_SetMicroSpriteBankVisible(
+					_s_visible_sprite_bank[hidden], hidden, false);
+			}
+		}
+		NG_SwapStagingMicroSpriteBank(chunk);
+	}
+
+	NG_UploadFixOverlay();
+	NG_ApplyMicroFramebufferMode(_s_pending_microfb_mode_index);
+	NG_EndMainVramWrite();
+	return;
+#else
 	if (_s_static_background_requested != STATIC_BACKGROUND_NONE)
 	{
 		NG_WaitVBlankStart();
@@ -838,7 +1133,8 @@ void I_FinishUpdate(void)
 		return;
 	}
 
-	const uint8_t next_sprite_set = _s_visible_sprite_set ^ 1u;
+	const uint8_t next_sprite_set =
+		(_s_visible_sprite_set + 1u) % MICROFB_FRAMEBUFFER_SETS;
 	NG_UploadMicroFramebuffer(next_sprite_set);
 	if (_s_configured_microfb_mode[next_sprite_set] != _s_microfb_mode_index)
 		NG_ConfigureMicroSpriteSet(next_sprite_set);
@@ -858,6 +1154,14 @@ void I_FinishUpdate(void)
 		{
 			NG_SetStaticBackgroundSpritesVisible(false);
 			_s_static_background_active = STATIC_BACKGROUND_NONE;
+#if defined NEOGEO_FBNEO_SAFE_STRIPS
+			/*
+			 * Static backgrounds reuse the first gameplay sprite slots and
+			 * clear their SCB3 words when hidden. Restore the horizontal
+			 * chains before this framebuffer becomes visible.
+			 */
+			NG_ConfigureMicroSpriteSet(next_sprite_set);
+#endif
 		}
 		else
 		{
@@ -881,6 +1185,7 @@ void I_FinishUpdate(void)
 	NG_EndMainVramWrite();
 	__asm__ volatile ("" ::: "memory");
 	_s_swap_pending = true;
+#endif
 }
 
 

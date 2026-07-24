@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -61,6 +62,7 @@ def run(
     *,
     cwd: Path | None = None,
     capture: bool = False,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[bytes]:
     print("+ " + " ".join(command), flush=True)
     return subprocess.run(
@@ -69,6 +71,7 @@ def run(
         check=True,
         stdout=subprocess.PIPE if capture else None,
         stderr=subprocess.STDOUT if capture else None,
+        env=env,
     )
 
 
@@ -171,7 +174,18 @@ def write_release_docs(
     release_dir: Path,
     source_commit: str,
     shareware_readme: Path | None,
+    fbneo_web: bool,
 ) -> None:
+    renderer_profile = (
+        "FBNeo browser compatibility (hardware-safe sprite strips)"
+        if fbneo_web
+        else "Native Neo Geo"
+    )
+    build_command = (
+        "python3 -B tools/build_shareware_release.py DOOM1.WAD --fbneo-web"
+        if fbneo_web
+        else "bash bneogeo.sh"
+    )
     (release_dir / "README.txt").write_text(
         textwrap.dedent(
             f"""\
@@ -196,6 +210,7 @@ def write_release_docs(
 
             Source: {SOURCE_URL}
             Source commit: {source_commit}
+            Renderer profile: {renderer_profile}
             Shareware IWAD SHA-256: {SHAREWARE_WAD_SHA256}
             Original shareware archive: {SHAREWARE_ARCHIVE_URL}
 
@@ -211,7 +226,8 @@ def write_release_docs(
             f"""\
             Source repository: {SOURCE_URL}
             Source commit: {source_commit}
-            Build command: bash bneogeo.sh
+            Build command: {build_command}
+            Renderer profile: {renderer_profile}
             Input profile: canonical Doom v1.9 shareware DOOM1.WAD
             Input SHA-256: {SHAREWARE_WAD_SHA256}
             """
@@ -229,8 +245,10 @@ def package_release(
     source_commit: str,
     shareware_readme: Path | None,
     force: bool,
+    fbneo_web: bool,
 ) -> Path:
-    stem = f"Doom64KB-NeoGeo-Shareware-{date.today():%Y%m%d}"
+    profile_suffix = "-FBNeo-Web" if fbneo_web else ""
+    stem = f"Doom64KB-NeoGeo-Shareware{profile_suffix}-{date.today():%Y%m%d}"
     release_dir = output_dir / stem
     release_zip = output_dir / f"{stem}.zip"
     if (release_dir.exists() or release_zip.exists()) and not force:
@@ -248,10 +266,12 @@ def package_release(
         release_dir,
         source_commit,
         shareware_readme,
+        fbneo_web,
     )
 
     manifest: dict[str, object] = {
         "profile": "doom-v1.9-shareware",
+        "renderer_profile": "fbneo-web-safe-strips" if fbneo_web else "native",
         "source_repository": SOURCE_URL,
         "source_commit": source_commit,
         "shareware_iwad_sha256": SHAREWARE_WAD_SHA256,
@@ -305,7 +325,15 @@ def build(args: argparse.Namespace, work: Path) -> tuple[Path, Path]:
     source_commit = copy_working_tree(repo, stage)
     shutil.copy2(source_iwad, stage / "DOOM64TB.WAD")
     force_source_asset_regeneration(stage)
-    run(["bash", "bneogeo.sh"], cwd=stage)
+    build_env = os.environ.copy()
+    if args.fbneo_web:
+        existing = build_env.get("EXTRA_RENDER_OPTIONS", "").strip()
+        build_env["EXTRA_RENDER_OPTIONS"] = " ".join(
+            option
+            for option in (existing, "-DNEOGEO_FBNEO_SAFE_STRIPS")
+            if option
+        )
+    run(["bash", "bneogeo.sh"], cwd=stage, env=build_env)
     rom_dir = validate_roms(stage)
     release = package_release(
         stage,
@@ -314,6 +342,7 @@ def build(args: argparse.Namespace, work: Path) -> tuple[Path, Path]:
         source_commit,
         args.shareware_readme.resolve() if args.shareware_readme else None,
         args.force,
+        args.fbneo_web,
     )
     return release, stage
 
@@ -327,6 +356,11 @@ def main() -> int:
         default=Path("dist/shareware"),
     )
     parser.add_argument("--shareware-readme", type=Path)
+    parser.add_argument(
+        "--fbneo-web",
+        action="store_true",
+        help="build the hardware-safe sprite-strip profile used by FBNeo Pages",
+    )
     parser.add_argument("--keep-work", action="store_true")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
