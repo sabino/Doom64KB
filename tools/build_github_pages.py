@@ -324,8 +324,9 @@ def copy_site(
     player = player_path.read_text(encoding="utf-8")
     player = player.replace("__GAME_URL__", json.dumps(game_url))
     player = player.replace("__BIOS_URL__", json.dumps(bios_url))
-    if "__GAME_URL__" in player or "__BIOS_URL__" in player:
-        raise BuildError("unresolved player URL placeholder")
+    player = player.replace("__BUILD_ID__", build_id)
+    if "__" in player:
+        raise BuildError("unresolved player placeholder")
     player_path.write_text(player, encoding="utf-8")
 
     index_path = output / "index.html"

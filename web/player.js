@@ -8,7 +8,10 @@ window.EJS_pathtodata = "https://cdn.emulatorjs.org/4.2.3/data/";
 window.EJS_startOnLoaded = false;
 window.EJS_startButtonName = "Play Doom64KB";
 window.EJS_alignStartButton = "center";
-window.EJS_backgroundImage = new URL("title.png", document.baseURI).href;
+window.EJS_backgroundImage = new URL(
+  "title.png?v=__BUILD_ID__",
+  document.baseURI
+).href;
 window.EJS_backgroundBlur = false;
 window.EJS_backgroundColor = "#050505";
 window.EJS_color = "#c83428";
