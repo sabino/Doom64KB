@@ -100,8 +100,6 @@ nav {
 #game-wrap {
   width: 100%;
   aspect-ratio: 320 / 224;
-  min-height: 280px;
-  max-height: calc(100vh - 150px);
   margin: 0 auto;
   background: #000;
   overflow: hidden;
@@ -214,11 +212,6 @@ footer p {
   nav {
     gap: 10px;
     font-size: 0.85rem;
-  }
-
-  #game-wrap {
-    min-height: 0;
-    max-height: none;
   }
 
   .controls {
