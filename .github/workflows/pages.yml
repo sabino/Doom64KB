@@ -1,0 +1,71 @@
+name: Playable GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  RELEASE_TAG: v20260724-shareware-fbneo-web
+  RELEASE_ARCHIVE: Doom64KB-NeoGeo-Shareware-FBNeo-Web-20260724.zip
+  RELEASE_SHA256: ee176b2f135378c55266c5bafd8c2898ddf76229ca6fdfced9d875920ea09d1a
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ngdevkit NullBIOS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common curl unzip
+          sudo add-apt-repository -y ppa:dciabrin/ngdevkit
+          sudo apt-get update
+          sudo apt-get install -y ngdevkit
+
+      - name: Download the pinned shareware release
+        run: |
+          mkdir -p build/pages-source
+          curl --fail --location --retry 3 \
+            "https://github.com/sabino/Doom64KB/releases/download/${RELEASE_TAG}/${RELEASE_ARCHIVE}" \
+            --output "build/pages-source/${RELEASE_ARCHIVE}"
+          echo "${RELEASE_SHA256}  build/pages-source/${RELEASE_ARCHIVE}" | sha256sum --check
+          unzip -p "build/pages-source/${RELEASE_ARCHIVE}" "*/doom64kb.zip" \
+            > build/pages-source/doom64kb.zip
+
+      - name: Build and verify browser player
+        run: |
+          python3 -B tools/build_github_pages.py \
+            --rom build/pages-source/doom64kb.zip \
+            --bios /usr/share/ngdevkit/neogeo.zip \
+            --output dist/pages
+          test -s dist/pages/index.html
+          test -s dist/pages/build-manifest.json
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/pages
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

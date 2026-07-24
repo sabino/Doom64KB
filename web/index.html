@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10100f">
+  <meta
+    name="description"
+    content="Play the Doom64KB Neo Geo shareware build in your browser."
+  >
+  <link rel="icon" href="title.png">
+  <link rel="preconnect" href="https://cdn.emulatorjs.org" crossorigin>
+  <link rel="stylesheet" href="style.css">
+  <title>Doom64KB - Play in Browser</title>
+</head>
+<body>
+  <main>
+    <header class="site-header">
+      <div>
+        <p class="edition">Neo Geo Shareware Edition</p>
+        <h1>Doom64KB</h1>
+      </div>
+      <nav aria-label="Project links">
+        <a href="https://github.com/sabino/Doom64KB">Source</a>
+        <a href="https://github.com/sabino/Doom64KB/releases/tag/v20260724-shareware">Native ROM</a>
+      </nav>
+    </header>
+
+    <section class="player-section" aria-label="Doom64KB browser emulator">
+      <div id="game-wrap">
+        <div id="game"></div>
+      </div>
+      <p class="launch-note">
+        Select <strong>Play Doom64KB</strong>, then press <kbd>1</kbd> at the title screen.
+        Audio starts after the browser receives that first interaction.
+      </p>
+    </section>
+
+    <section class="controls" aria-labelledby="controls-title">
+      <div class="section-heading">
+        <p class="section-label">Keyboard</p>
+        <h2 id="controls-title">Controls</h2>
+      </div>
+      <dl class="control-grid">
+        <div><dt>Move</dt><dd><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd></dd></div>
+        <div><dt>Use / Sprint</dt><dd><kbd>A</kbd></dd></div>
+        <div><dt>Fire</dt><dd><kbd>S</kbd></dd></div>
+        <div><dt>Strafe</dt><dd><kbd>Q</kbd><kbd>E</kbd></dd></div>
+        <div><dt>Menu</dt><dd><kbd>1</kbd></dd></div>
+        <div><dt>Automap</dt><dd><kbd>2</kbd></dd></div>
+      </dl>
+      <p class="controller-note">
+        Gamepads and touch controls are supported and can be remapped from the
+        emulator toolbar.
+      </p>
+    </section>
+
+    <footer>
+      <p>
+        Unofficial noncommercial port using the canonical Doom v1.9 shareware
+        data. The browser runtime uses
+        <a href="https://emulatorjs.org/">EmulatorJS</a>,
+        the FBNeo core, and ngdevkit's open-source
+        <a href="https://github.com/dciabrin/ngdevkit">NullBIOS</a>.
+      </p>
+      <p class="build">Web build __BUILD_ID__</p>
+    </footer>
+  </main>
+
+  <script src="player.js"></script>
+  <script src="https://cdn.emulatorjs.org/4.2.3/data/loader.js"></script>
+</body>
+</html>

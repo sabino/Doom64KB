@@ -9,6 +9,7 @@ WAD-derived assets.
 
 - [Official upstream releases](https://github.com/FrenkelS/Doom64KB/releases)
 - [Experimental Neo Geo sprite-renderer releases](https://github.com/sabino/Doom64KB/releases)
+- [Play the Neo Geo shareware build in your browser](https://sabino.pro/Doom64KB/)
 
 ## Neo Geo Edition
 
@@ -29,16 +30,29 @@ Sprite pen 0 is transparent. The 256 Doom palette entries are therefore packed
 into 18 sprite palettes with 15 visible colors each. Every logical cell
 selects both a solid tile and its palette through SCB1.
 
-High detail uses 160 vertical sprite strips per framebuffer set: 80 logical
-columns split into two vertical chunks, with only 80 strips active on any
-scanline. Two complete sprite-control sets are reserved. The hidden set
-receives the next frame's tile and palette attributes, then the sets swap at
-VBlank. Synchronous swaps are retained for detail changes, palette changes,
-wipes, and static-page transitions.
+The native profile uses 160 vertical sprite strips per framebuffer set at High
+detail: 80 logical columns split into two vertical chunks, with only 80 strips
+active on any scanline. Two complete sprite-control sets are reserved. The
+hidden set receives the next frame's tile and palette attributes, then the sets
+swap at VBlank. Synchronous swaps are retained for detail changes, palette
+changes, wipes, and static-page transitions.
 
-TITLEPIC, WIMAP0, and HELP2 use dedicated 38x28 sprite-backed backgrounds.
-Their 16-palette artwork is generated from the selected IWAD. Menu and
-intermission art is rendered on FIX above those backgrounds.
+The FBNeo browser profile uses normal strips no taller than 16 source tiles. It
+splits the frame into four 14-row bands and keeps four complete visible banks
+plus one hidden staging bank. Each bank has 76 strips, for 380 sprite slots
+total. A band is written only while hidden and swapped at VBlank; Low updates
+two bands, Medium three, and High four. This keeps scanout away from partially
+written SCB1 data while staying inside the Neo Geo's 381-sprite limit.
+
+Browser High renders a centered 76x56 logical view as 304x224, with 8-pixel side
+margins. Static 38x28 backgrounds use two 14-row bands and temporarily reuse the
+same sprite slots because they are mutually exclusive with gameplay. This
+profile is selected only by the shareware web-release builder; the normal native
+build retains its 80x56, two-set framebuffer.
+
+TITLEPIC, WIMAP0, and HELP2 use exact 38x28 sprite-backed backgrounds. Their
+16-palette artwork is generated from the selected IWAD. Menu and intermission
+art is rendered on FIX above those backgrounds.
 
 ### Graphics Detail
 
@@ -51,9 +65,13 @@ during a game.
 | ![Low detail, 40x28](readme_imgs/neogeo-detail-low.png) | ![Medium detail, 53x37](readme_imgs/neogeo-detail-medium.png) | ![High detail, 80x56](readme_imgs/neogeo-detail-high.png) |
 | 40x28, 8x8 cells | 53x37, 6x6 cells | 80x56, 4x4 cells |
 
-Medium displays a centered 318x222 image. Low and High fill 320x224. Lower
-detail reduces wall columns, flat spans, sprite columns, and framebuffer
-upload work; it is not merely a display-side stretch.
+In the native profile, Medium displays a centered 318x222 image while Low and
+High fill 320x224. Lower detail reduces wall columns, flat spans, sprite
+columns, and framebuffer upload work; it is not merely a display-side stretch.
+
+The FBNeo browser profile uses the same Low and Medium dimensions. Its High
+mode uses 76x56 and a centered 304x224 image so the hidden rotating band fits
+within the hardware sprite budget.
 
 The selected detail mode is not currently persisted in SRAM.
 
@@ -150,18 +168,18 @@ E1M6.
 
 ## Controls
 
-| Action | Neo Geo |
-|---|---|
-| Walk | Joystick |
-| Fire | B |
-| Use / Sprint | A |
-| Strafe | C and D |
-| Weapon up | A + D |
-| Weapon down | A + C |
-| Menu | Player 1 Start |
-| Automap | Player 2 Start |
-| Automap zoom in and out | C and D |
-| Automap follow mode | A |
+| Action | Neo Geo | Browser player |
+|---|---|---|
+| Walk | Joystick | Arrow keys |
+| Fire | B | S |
+| Use / Sprint | A | A |
+| Strafe | C and D | Q and E |
+| Weapon up | A + D | A + E |
+| Weapon down | A + C | A + Q |
+| Menu | Player 1 Start | 1 |
+| Automap | Player 2 Start | 2 |
+| Automap zoom in and out | C and D | Q and E |
+| Automap follow mode | A | A |
 
 ## Cheats
 
@@ -230,6 +248,8 @@ python3 -B tools/build_shareware_release.py \
 ```
 
 Pass `--keep-work` to retain the isolated build directory for emulator testing.
+Pass `--fbneo-web` to build the short-strip, rotating-band profile consumed by
+the browser player; without it, the builder keeps the native renderer profile.
 The release archive contains:
 
 - `doom64kb.zip`: the Neo Geo P/C/S/M/V ROM set.
@@ -240,6 +260,12 @@ The release archive contains:
 
 No Doom IWAD, installer, emulator, or Neo Geo BIOS is included in the release.
 Use a compatible user-supplied BIOS or open-source replacement.
+
+The game can be played without installing an emulator at
+[sabino.pro/Doom64KB](https://sabino.pro/Doom64KB/). The GitHub Pages workflow
+pins the separate `FBNeo-Web` shareware release, packages it for the EmulatorJS
+FBNeo core, and supplies ngdevkit's open-source NullBIOS. The downloadable
+native Neo Geo release remains on the normal renderer profile.
 
 ## Key Files
 
@@ -253,6 +279,7 @@ Use a compatible user-supplied BIOS or open-source replacement.
 | Neo Geo art generation | `tools/gen_neogeo_fix_menu.py`, `tools/gen_neogeo_color_tiles.py` |
 | Audio generation | `tools/gen_neogeo_audio.py` |
 | Shareware release pipeline | `tools/build_shareware_release.py` |
+| Browser player pipeline | `tools/build_github_pages.py`, `web/`, `.github/workflows/pages.yml` |
 | Neo Geo build | `bneogeo.sh` |
 
 ## License

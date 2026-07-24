@@ -177,7 +177,7 @@ def write_release_docs(
     fbneo_web: bool,
 ) -> None:
     renderer_profile = (
-        "FBNeo browser compatibility (hardware-safe sprite strips)"
+        "FBNeo browser compatibility (short sprite strips)"
         if fbneo_web
         else "Native Neo Geo"
     )
@@ -359,7 +359,7 @@ def main() -> int:
     parser.add_argument(
         "--fbneo-web",
         action="store_true",
-        help="build the hardware-safe sprite-strip profile used by FBNeo Pages",
+        help="build the short-strip compatibility profile used by FBNeo Pages",
     )
     parser.add_argument("--keep-work", action="store_true")
     parser.add_argument("--force", action="store_true")
