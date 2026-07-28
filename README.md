@@ -65,6 +65,10 @@ during a game.
 | ![Low detail, 40x28](readme_imgs/neogeo-detail-low.png) | ![Medium detail, 53x37](readme_imgs/neogeo-detail-medium.png) | ![High detail, 80x56](readme_imgs/neogeo-detail-high.png) |
 | 40x28, 8x8 cells | 53x37, 6x6 cells | 80x56, 4x4 cells |
 
+The three captures use the same E1M1 player-start position and game tic, so the
+difference shown is the renderer detail mode rather than a camera or timing
+change.
+
 In the native profile, Medium displays a centered 318x222 image while Low and
 High fill 320x224. Lower detail reduces wall columns, flat spans, sprite
 columns, and framebuffer upload work; it is not merely a display-side stretch.
@@ -140,18 +144,38 @@ The Neo Geo renderer includes:
 - Compact sectors, line state, touching-sector nodes, sprite definitions, and
   map geometry references.
 
-Two commit-local deterministic 350-gametic measurements document specific
-optimization steps:
+The current renderer was measured at `f8e0de1` against the already-functional
+sprite-renderer baseline at `6120678`. The benchmark uses six fixed E1M2 camera
+positions, including broad geometry, a high-segment corridor, a close wall, and
+two enemy-dense views. Each mode runs three exact repeats with 30 warm-up frames
+and 120 measured frames. The game advances exactly one tic per frame under
+GnGeo at stock emulated clocks; time is counted with the emulated 60 Hz VBlank
+counter rather than host wall time.
+
+| Detail | Baseline end-to-end | Current end-to-end | Throughput change | Renderer-only change |
+|---|---:|---:|---:|---:|
+| Low | 15.142 FPS | 15.407 FPS | +1.75% | +3.04% |
+| Medium | 12.145 FPS | 12.529 FPS | +3.16% | +3.50% |
+| High | 7.935 FPS | 8.459 FPS | +6.60% | +7.63% |
+
+The end-to-end figures include game simulation and display work. The
+renderer-only column uses the separately measured display phase, which avoids
+attributing actor-simulation changes to the renderer. The largest individual
+end-to-end gain was the High-detail high-segment corridor, from 9.387 to 11.250
+FPS (+19.84%). Timing, framebuffer hashes, and decoded screenshot pixels were
+exact across all three repeats within each revision.
+
+Earlier commit-local deterministic 350-gametic measurements document two
+specific optimization steps:
 
 | Detail | Before | After | Change |
 |---|---:|---:|---:|
 | Medium at `b7efa08` | 1608 realtics | 1412 realtics | 12.2% less elapsed time |
 | High at `ef3f50f` | 2086 realtics | 1886 realtics | 9.6% less elapsed time, 10.6% more throughput |
 
-These are controlled snapshots for the named commits, not an aggregate
-benchmark claim for the current branch. Compact sector references save roughly
-1.3 to 4.2 KB of level heap depending on the map, including about 4.2 KB on
-E1M6.
+Those earlier rows are controlled snapshots for the named commits. Compact
+sector references save roughly 1.3 to 4.2 KB of level heap depending on the
+map, including about 4.2 KB on E1M6.
 
 ## Current Limitations
 
