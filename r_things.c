@@ -10,7 +10,7 @@
  *  Jess Haas, Nicolas Kalkhof, Colin Phipps, Florian Schulze
  *  Copyright 2005, 2006 by
  *  Florian Schulze, Colin Phipps, Neil Stevens, Andrey Budko
- *  Copyright 2023, 2024 by
+ *  Copyright 2023-2026 by
  *  Frenkel Smeijers
  *
  *  This program is free software; you can redistribute it and/or
@@ -71,7 +71,7 @@ void R_InitSpriteLumps(void)
 static int8_t maxframe;
 
 #define MAX_SPRITE_FRAMES 29
-static spriteframe_t sprtemp[MAX_SPRITE_FRAMES];
+static spriteframe_t __far* sprtemp;
 
 static int16_t firstspritelump;
 static int16_t numentries;
@@ -173,6 +173,8 @@ void R_InitSprites(void)
 
   _fmemset(sprites, 0, NUMSPRITES *sizeof(*sprites));
 
+  sprtemp = Z_MallocStatic(MAX_SPRITE_FRAMES * sizeof(*sprtemp));
+
   // Create hash table based on just the first four letters of each sprite
   // killough 1/31/98
 
@@ -200,7 +202,7 @@ void R_InitSprites(void)
 
       if (j >= 0)
         {
-          memset(sprtemp, -1, sizeof(sprtemp));
+          _fmemset(sprtemp, -1, MAX_SPRITE_FRAMES * sizeof(*sprtemp));
           maxframe = -1;
           do
             {
@@ -228,7 +230,7 @@ void R_InitSprites(void)
           while ((j = hash[j].next) >= 0);
 
           // check the frames that were found for completeness
-          if ((sprites[i].numframes = ++maxframe))  // killough 1/31/98
+          if (++maxframe)
             {
               int8_t frame;
               for (frame = 0; frame < maxframe; frame++)
@@ -264,6 +266,7 @@ void R_InitSprites(void)
     }
 
   Z_Free(hash);           // free hash table
+  Z_Free(sprtemp);
 }
 
 

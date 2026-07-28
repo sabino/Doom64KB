@@ -53,10 +53,11 @@ FRAME_PATTERN = re.compile(
     r"(?P<frame>[A-Z])\s*\*/$"
 )
 DEFINITION_PATTERN = re.compile(
-    r"^\s*\{\s*(?P<count>\d+),\s*"
+    r"^\s*\{\s*"
     r"(?:(?:\(spriteframe_t __far \*\)\(doom_sprite_frames \+ "
     r"(?P<offset>\d+)\))|(?:\(spriteframe_t __far \*\)0))\s*\},\s*"
-    r"/\*\s*(?P<index>\d+):\s*(?P<name>[A-Z0-9]{4})\s*\*/$"
+    r"/\*\s*(?P<index>\d+):\s*(?P<name>[A-Z0-9]{4}),\s*"
+    r"(?P<count>\d+)\s+frames\s*\*/$"
 )
 
 

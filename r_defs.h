@@ -457,7 +457,6 @@ typedef struct
 
 typedef struct
 {
-  int8_t numframes;
   spriteframe_t __far* spriteframes;
 } spritedef_t;
 

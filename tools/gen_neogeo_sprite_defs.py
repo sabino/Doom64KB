@@ -391,8 +391,8 @@ def generate_header(
         else:
             frame_pointer = "(spriteframe_t __far *)0"
         lines.append(
-            f"    {{ {len(definition.frames)}, {frame_pointer} }}, "
-            f"/* {index}: {definition.name} */"
+            f"    {{ {frame_pointer} }}, "
+            f"/* {index}: {definition.name}, {len(definition.frames)} frames */"
         )
 
     lines.extend(
