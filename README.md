@@ -228,7 +228,7 @@ The Neo Geo build requires:
   toolchains and `romtool.py`.
 - Python 3, SoX, `adpcmtool.py`, libFluidSynth, and a General MIDI SoundFont.
 - An owned Doom v1.9 registered IWAD named `DOOM64TB.WAD`.
-- The checked-in compact `doom64ng.h` and `doommapb.h` data.
+- The checked-in compact `doom64ng.h` and `doom64nm.h` data.
 
 ```sh
 # Build the ROM.

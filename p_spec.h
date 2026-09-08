@@ -81,32 +81,40 @@
 
 // p_plats
 
-typedef enum
+enum
 {
   up,
   down,
   waiting,
-} plat_e;
+};
 
-typedef enum
+typedef int8_t plat_e;
+
+
+enum
 {
   downWaitUpStay,
   raiseToNearestAndChange,
-} plattype_e;
+};
+
+typedef int8_t plattype_e;
+
 
 // p_doors
 
-typedef enum
+enum
 {
   normal,
   close30ThenOpen,
   dopen,
-} vldoor_e;
+};
+
+typedef int8_t vldoor_e;
 
 
 // p_floor
 
-typedef enum
+enum
 {
   // lower floor to highest surrounding floor
   lowerFloor,
@@ -126,7 +134,9 @@ typedef enum
   donutRaise,
 
   buildStair,
-} floor_e;
+};
+
+typedef int8_t floor_e;
 
 
 //////////////////////////////////////////////////////////////////
@@ -176,17 +186,22 @@ typedef struct
 {
   thinker_t thinker;
   sector_t __far* sector;
+  struct platlist __far* list;
   fixed_t speed;
   fixed_t low;
   fixed_t high;
-  int16_t wait;
-  int16_t count;
-  plat_e status;
   int16_t tag;
+  int8_t wait;
+  int8_t count;
+  plat_e status;
   plattype_e type;
-
-  struct platlist __far* list;
 } plat_t;
+
+#if defined __NGDEVKIT__
+typedef char assertPlatSize[sizeof(plat_t) == 38 ? 1 : -1];
+#else
+typedef char assertPlatSize[sizeof(plat_t) == 40 ? 1 : -1];
+#endif
 
 
 // p_ceilng
@@ -194,26 +209,31 @@ typedef struct
 typedef struct
 {
   thinker_t thinker;
-  vldoor_e type;
   sector_t __far* sector;
   fixed_t topheight;
   fixed_t speed;
 
-  // 1 = up, 0 = waiting at top, -1 = down
-  int16_t direction;
+  //jff 1/31/98 keep track of line door is triggered by
+  const line_t __far* line;
 
-  // tics to wait at the top
-  int16_t topwait;
   // (keep in case a door going down is reset)
   // when it reaches 0, start going down
   int16_t topcountdown;
 
-  //jff 1/31/98 keep track of line door is triggered by
-  const line_t __far* line;
+  vldoor_e type;
+
+  // 1 = up, 0 = waiting at top, -1 = down
+  int8_t direction;
 
   /* killough 10/98: sector tag for gradual lighting effects */
-  int16_t lighttag;
+  int8_t lighttag;
 } vldoor_t;
+
+#if defined __NGDEVKIT__
+typedef char assertVldoorSize[sizeof(vldoor_t) == 34 ? 1 : -1];
+#else
+typedef char assertVldoorSize[sizeof(vldoor_t) == 36 ? 1 : -1];
+#endif
 
 
 ////////////////////////////////////////////////////////////////
@@ -254,8 +274,8 @@ void T_VerticalDoor(vldoor_t __far* door);
 
 // p_floor
 
-result_e T_MovePlaneFloor  (sector_t __far* sector, fixed_t speed, fixed_t dest, int16_t direction);
-result_e T_MovePlaneCeiling(sector_t __far* sector, fixed_t speed, fixed_t dest, int16_t direction);
+result_e T_MovePlaneFloor  (sector_t __far* sector, fixed_t speed, fixed_t dest, int8_t direction);
+result_e T_MovePlaneCeiling(sector_t __far* sector, fixed_t speed, fixed_t dest, int8_t direction);
 
 
 ////////////////////////////////////////////////////////////////
@@ -319,7 +339,7 @@ boolean P_UseSpecialLine(mobj_t __far* thing, const line_t __far* line);
 
 void P_SpawnLightFlash(sector_t __far* sector);
 
-void P_SpawnStrobeFlash(sector_t __far* sector, int16_t fastOrSlow, boolean inSync);
+void P_SpawnStrobeFlash(sector_t __far* sector, int8_t fastOrSlow, boolean inSync);
 
 void P_SpawnGlowingLight(sector_t __far* sector);
 

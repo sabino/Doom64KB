@@ -61,15 +61,17 @@ typedef struct
 } channel_t;
 
 
-// the set of channels available
-static channel_t *channels;
-
+// number of channels available
 #if defined __NGDEVKIT__
-#define S_SOUND_CHANNELS 6
-static channel_t neogeo_channels[S_SOUND_CHANNELS];
+#define numChannels 6
 #else
-#define S_SOUND_CHANNELS 1
+#define numChannels 1
 #endif
+
+
+// the set of channels available
+static channel_t channels[numChannels];
+
 
 // music currently being played
 static musicenum_t mus_playing;
@@ -103,9 +105,6 @@ int16_t snd_SfxVolume = 15;
 int16_t snd_MusicVolume = 15;
 
 
-// number of channels available
-static const int16_t numChannels = S_SOUND_CHANNELS;
-
 //
 // Internals.
 //
@@ -131,18 +130,6 @@ void S_Init(int16_t sfxVolume, int16_t musicVolume)
         printf("S_Init: default sfx volume %d\n", sfxVolume);
 
         S_SetSfxVolume(sfxVolume);
-
-        // Allocating the internal channels for mixing
-        // (the maximum numer of sounds rendered
-        // simultaneously) within zone memory.
-        // CPhipps - calloc
-#if defined __NGDEVKIT__
-        channels = neogeo_channels;
-#else
-        channels =
-                (channel_t *) Z_MallocStatic(numChannels * sizeof(channel_t));
-#endif
-        memset(channels, 0, numChannels * sizeof(channel_t));
     }
 
     // CPhipps - music init reformatted

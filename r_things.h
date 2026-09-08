@@ -10,7 +10,7 @@
  *  Jess Haas, Nicolas Kalkhof, Colin Phipps, Florian Schulze
  *  Copyright 2005, 2006 by
  *  Florian Schulze, Colin Phipps, Neil Stevens, Andrey Budko
- *  Copyright 2023 by
+ *  Copyright 2023-2026 by
  *  Frenkel Smeijers
  *
  *  This program is free software; you can redistribute it and/or
@@ -35,6 +35,16 @@
 
 #ifndef __R_THINGS__
 #define __R_THINGS__
+
+#define MAX_SPRITE_FRAMES 23
+
+#if defined __NGDEVKIT__ && defined NEOGEO_ROM_SPRITE_DEFS
+extern const spritedef_t *sprites;
+#define R_SPRITE_FRAMES(sprite) (sprites[(sprite)].spriteframes)
+#else
+extern const spriteframe_t *sprites;
+#define R_SPRITE_FRAMES(sprite) (&sprites[(sprite) * MAX_SPRITE_FRAMES])
+#endif
 
 void R_InitSprites(void);
 void R_InitSpriteLumps(void);

@@ -72,12 +72,14 @@ typedef struct
 //
 
 #if defined __WATCOMC__
-static unsigned char doom_iwad[2 * 1014 * 1024];
+static unsigned char doom_iwad[1 * 1014 * 1024];
+static unsigned char doom_iwad_maps[1 * 1014 * 1024];
 #elif defined __DJGPP__
 #include "doom64kl.h"
+#include "doommapl.h"
 #elif defined __NGDEVKIT__
 #include "doom64ng.h"
-#include "doommapb.h"
+#include "doom64nm.h"
 #else
 #error unsupported compiler
 #endif
@@ -97,9 +99,11 @@ typedef struct
   int32_t  infotableofs;
 } wadinfo_t;
 
+
 #if !defined WAD_FILE
 #define WAD_FILE "DOOM1.WAD"
 #endif
+
 
 void W_Init(void)
 {
@@ -107,11 +111,20 @@ void W_Init(void)
 	printf("\tshareware version.\n");
 
 #if defined __WATCOMC__
-	FILE *fileWAD = fopen(WAD_FILE, "rb");
+	FILE *fileWAD;
+
+	fileWAD = fopen(WAD_FILE, "rb");
 	if (fileWAD == NULL)
 		I_Error("Can't open " WAD_FILE ".");
 
 	fread(doom_iwad, sizeof(doom_iwad), 1, fileWAD);
+	fclose(fileWAD);
+
+	fileWAD = fopen(MAP_WAD_FILE, "rb");
+	if (fileWAD == NULL)
+		I_Error("Can't open " MAP_WAD_FILE ".");
+
+	fread(doom_iwad_maps, sizeof(doom_iwad_maps), 1, fileWAD);
 	fclose(fileWAD);
 #endif
 

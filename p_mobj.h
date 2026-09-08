@@ -226,8 +226,6 @@ typedef struct mobj_s
 
     //More drawing info: to determine current sprite.
     angle_t             angle;  // orientation
-    spritenum_t         sprite; // used to find patch_t and flip value
-    uint16_t            frame;  // might be ORed with FF_FULLBRIGHT
 
     // Interaction info, by BLOCKMAP.
     // Links in blocks (if needed).
@@ -255,11 +253,6 @@ typedef struct mobj_s
     fixed_t             momy;
     fixed_t             momz;
 
-    int16_t             health;
-
-    mobjtype_t          type;
-
-    int16_t             tics;   // state tic counter
     const state_t*      state;
     uint32_t            flags;
 
@@ -267,14 +260,18 @@ typedef struct mobj_s
     // also the originator for missiles.
     struct mobj_s __far*      target;
 
-    // Movement direction, movement generation (zig-zagging).
+    // new field: last known enemy -- killough 2/15/98
+    struct mobj_s __far*      lastenemy;
 
-    uint8_t            movedir;
+                                       // phares 3/17/98
+    // a linked list of sectors where this object appears
+    msecnode_link_t touching_sectorlist;
 
-    // If >0, the current target will be chased no
-    // matter what (even if shot by another object)
-    uint8_t            threshold;
+    uint16_t            frame;  // might be ORed with FF_FULLBRIGHT
 
+    int16_t             health;
+
+    int16_t             tics;   // state tic counter
 
     // killough 9/9/98: How long a monster pursues a target.
     uint16_t            pursuecount;
@@ -285,19 +282,24 @@ typedef struct mobj_s
     // Used by player to freeze a bit after teleporting.
     int16_t             reactiontime;
 
-    // new field: last known enemy -- killough 2/15/98
-    struct mobj_s __far*      lastenemy;
+    spritenum_t         sprite; // used to find patch_t and flip value
 
-                                       // phares 3/17/98
-    // a linked list of sectors where this object appears
-    msecnode_link_t touching_sectorlist;
+    mobjtype_t          type;
+
+    // Movement direction, movement generation (zig-zagging).
+
+    uint8_t            movedir;
+
+    // If >0, the current target will be chased no
+    // matter what (even if shot by another object)
+    uint8_t            threshold;
 
     // SEE WARNING ABOVE ABOUT POINTER FIELDS!!!
 } mobj_t;
 
 #if defined NEOGEO_COMPACT_MSECNODES
-_Static_assert(sizeof(mobj_t) == 110,
-               "compact Neo Geo mobj_t must be 110 bytes");
+_Static_assert(sizeof(mobj_t) == 108,
+               "compact Neo Geo mobj_t must be 108 bytes");
 _Static_assert(_Alignof(mobj_t) >= 2,
                "compact Neo Geo mobj_t must stay 68000-aligned");
 #endif

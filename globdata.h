@@ -254,10 +254,6 @@ extern uint16_t validcount;         // increment every time a check is made
 extern int16_t skyflatnum;
 
 
-// variables used to look up and range check thing_t sprites patches
-extern spritedef_t __far* sprites;
-
-
 // These are not used, but should be (menu).
 // Maximum volume of a sound effect.
 // Internal default is max out of 0-15.

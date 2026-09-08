@@ -89,6 +89,13 @@ typedef struct
 #endif
 } degenmobj_t;
 
+#if defined NEOGEO_COMPACT_SECTORS
+typedef char assertDegenmobjSize[sizeof(degenmobj_t) == 4 ? 1 : -1];
+#else
+typedef char assertDegenmobjSize[sizeof(degenmobj_t) == 8 ? 1 : -1];
+#endif
+
+
 //
 // The SECTORS record, at runtime.
 // Stores things/mobjs.
@@ -189,6 +196,9 @@ typedef PACKEDATTR_PRE struct
 } PACKEDATTR_POST side_t;
 
 typedef char assertSideSize[sizeof(side_t) == 5 ? 1 : -1];
+
+
+
 
 typedef PACKEDATTR_PRE struct {
   int16_t textureoffset;
@@ -445,20 +455,19 @@ typedef struct
   // If false use 0 for any position.
   // Note: as eight entries are available,
   //  we might as well insert the same name eight times.
-  boolean rotate;
+  byte rotate;
 
 } spriteframe_t;
 
+typedef char assertSpriteframeSize[sizeof(spriteframe_t) == 18 ? 1 : -1];
 
-//
-// A sprite definition:
-//  a number of animation frames.
-//
-
+#if defined __NGDEVKIT__ && defined NEOGEO_ROM_SPRITE_DEFS
 typedef struct
 {
-  spriteframe_t __far* spriteframes;
+  const spriteframe_t *spriteframes;
 } spritedef_t;
+#endif
+
 
 //
 // Now what is a visplane, anyway?

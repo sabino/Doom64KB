@@ -428,6 +428,8 @@ typedef struct {
 	uint8_t __far* textureoffset;	// Affected textureoffset
 } scroll_t;
 
+typedef char assertScrollSize[sizeof(scroll_t) == 16 ? 1 : -1];
+
 
 static void T_Scroll(scroll_t __far* s)
 {

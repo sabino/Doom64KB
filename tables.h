@@ -68,16 +68,11 @@ typedef uint32_t angle_t;
 typedef uint16_t angle16_t;
 
 
-#if defined DEMO_COMPATIBLE
 fixed_t finesine(int16_t x);
 fixed_t finecosine(int16_t x);
-#else
-#define finesine finesineapprox
-#define finecosine finecosineapprox
-#endif
 
-fixed_t finesineapprox(int16_t x);
-fixed_t finecosineapprox(int16_t x);
+#define finesineapprox finesine
+#define finecosineapprox finecosine
 
 extern const uint16_t xtoviewangleTable[VIEWWINDOWWIDTH + 1];
 
