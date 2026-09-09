@@ -55,6 +55,9 @@
 
 #include "globdata.h"
 
+#if defined __NGDEVKIT__
+#include "neogeo/doom_projection.h"
+#endif
 
 #if VIEWWINDOWHEIGHT < 126
 typedef int8_t height_t;
@@ -748,17 +751,6 @@ static uint32_t mulu(uint16_t a, uint16_t b) {
 	);
 	return result;
 #endif
-}
-
-
-/* Exact high word of a 16x32 product.  Wall distance is non-negative and the
- * tangent tables hold positive quadrant magnitudes, so texture projection does
- * not need the generic three-multiply 32x32 helper on a 68000.
- */
-static uint16_t mulu16x32hi(uint16_t a, uint32_t b)
-{
-	const uint32_t low = mulu(a, (uint16_t)b);
-	return (uint16_t)((low >> 16) + mulu(a, (uint16_t)(b >> 16)));
 }
 
 
@@ -2497,7 +2489,11 @@ static void R_RenderSegLoop(int16_t rw_x, boolean segtextured, boolean markfloor
 			int16_t ang = (angle16_t)(rw_centerangle + R_XTOVIEWANGLE(rw_x)) >> ANGLETOFINESHIFT_16;
 			fixed_t tan = finetangent[ang];
 			texturecolumn = rw_offset;
+#if defined __NGDEVKIT__
+			texturecolumn -= NG_ProjectionProductHigh(rw_distance, tan);
+#else
 			texturecolumn -= (rw_distance * tan) >> FRACBITS;
+#endif
 #endif
 
             dcvars.fracstep = FixedReciprocal((uint32_t)loop_rw_scale) >> COLEXTRABITS;
