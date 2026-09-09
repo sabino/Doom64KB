@@ -1298,14 +1298,28 @@ static void R_DrawMaskedColumn(R_DrawColumn_f colfunc, draw_column_vars_t *dcvar
     const height_t fclip_x = mfloorclip[dcvars->x];
     const height_t cclip_x = mceilingclip[dcvars->x];
 
+#if defined __NGDEVKIT__
+    if (fclip_x <= cclip_x + 1)
+        return;
+#endif
+
     while (column->topdelta != 0xff)
     {
         // calculate unclipped screen coordinates for post
+#if defined __NGDEVKIT__
+        const uint32_t topscreen = (uint32_t)sprtopscreen
+            + NG_PostProduct(column->topdelta, (uint32_t)spryscale);
+        const uint32_t bottomscreen = topscreen
+            + NG_PostProduct(column->length, (uint32_t)spryscale);
+        int16_t yh = (int32_t)(bottomscreen - 1u) >> FRACBITS;
+        int16_t yl = (int32_t)(topscreen + (uint32_t)(FRACUNIT - 1)) >> FRACBITS;
+#else
         const int32_t topscreen = sprtopscreen + spryscale*column->topdelta;
         const int32_t bottomscreen = topscreen + spryscale*column->length;
 
         int16_t yh = (bottomscreen-1)>>FRACBITS;
         int16_t yl = (topscreen+FRACUNIT-1)>>FRACBITS;
+#endif
 
         if (yh >= fclip_x)
             yh = fclip_x - 1;
