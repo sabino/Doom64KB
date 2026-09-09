@@ -1,7 +1,12 @@
 set -e
 
+NGDEVKIT_PREFIX="${NGDEVKIT_PREFIX:-$(dirname "$(dirname "$(readlink -f "$(command -v m68k-neogeo-elf-gcc)")")")}"
+NGDEVKIT_DATA_DIR="${NGDEVKIT_DATA_DIR:-$NGDEVKIT_PREFIX/share/ngdevkit}"
+GNGEO_DATA_FILE="${GNGEO_DATA_FILE:-$NGDEVKIT_PREFIX/share/ngdevkit-gngeo/gngeo_data.zip}"
+
 mkdir -p neogeo/rom
 mkdir -p neogeo/assets/generated
+python3 -B tools/gen_neogeo_reciprocal.py
 
 fix_ui_inputs="
   tools/gen_neogeo_fix_menu.py
@@ -262,9 +267,9 @@ truncate -s 131072 neogeo/rom/doom64kb-s1.s1
 truncate -s "$AUDIO_VROM_BYTES" neogeo/rom/doom64kb-v1.v1
 romtool.py -b cartridge -f zip   -p neogeo/rom/doom64kb-p1.p1 neogeo/rom/doom64kb-p2.p2 -c neogeo/rom/doom64kb-c1.c1 neogeo/rom/doom64kb-c2.c2 -v neogeo/rom/doom64kb-v1.v1 -s neogeo/rom/doom64kb-s1.s1 -m neogeo/rom/doom64kb-m1.m1 -n doom64kb -x "zip.comment="              -o neogeo/rom/doom64kb.zip
 romtool.py -b hash      -f mame  -p neogeo/rom/doom64kb-p1.p1 neogeo/rom/doom64kb-p2.p2 -c neogeo/rom/doom64kb-c1.c1 neogeo/rom/doom64kb-c2.c2 -v neogeo/rom/doom64kb-v1.v1 -s neogeo/rom/doom64kb-s1.s1 -m neogeo/rom/doom64kb-m1.m1 -n doom64kb -l "Doom64KB: Neo Geo Edition" -o neogeo/rom/neogeo.xml
-romtool.py -b hash      -f gngeo -p neogeo/rom/doom64kb-p1.p1 neogeo/rom/doom64kb-p2.p2 -c neogeo/rom/doom64kb-c1.c1 neogeo/rom/doom64kb-c2.c2 -v neogeo/rom/doom64kb-v1.v1 -s neogeo/rom/doom64kb-s1.s1 -m neogeo/rom/doom64kb-m1.m1 -n doom64kb -l "Doom64KB: Neo Geo Edition" -o neogeo/rom/gngeo_data.zip -x gngeo.data=/usr/share/ngdevkit-gngeo/gngeo_data.zip
-cp /usr/share/ngdevkit/aes.zip    neogeo/rom/aes.zip
-cp /usr/share/ngdevkit/neogeo.zip neogeo/rom/neogeo.zip
+romtool.py -b hash      -f gngeo -p neogeo/rom/doom64kb-p1.p1 neogeo/rom/doom64kb-p2.p2 -c neogeo/rom/doom64kb-c1.c1 neogeo/rom/doom64kb-c2.c2 -v neogeo/rom/doom64kb-v1.v1 -s neogeo/rom/doom64kb-s1.s1 -m neogeo/rom/doom64kb-m1.m1 -n doom64kb -l "Doom64KB: Neo Geo Edition" -o neogeo/rom/gngeo_data.zip -x "gngeo.data=$GNGEO_DATA_FILE"
+cp "$NGDEVKIT_DATA_DIR/aes.zip"    neogeo/rom/aes.zip
+cp "$NGDEVKIT_DATA_DIR/neogeo.zip" neogeo/rom/neogeo.zip
 
 for arg in "$@"
 do

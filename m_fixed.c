@@ -29,7 +29,11 @@
 #define USE_LOOKUP_TABLE
 
 
+#if defined __NGDEVKIT__
+#include "neogeo/assets/generated/doom_reciprocal.h"
+#else
 static const uint32_t reciprocalTable[65536];
+#endif
 
 
 fixed_t CONSTFUNC FixedReciprocal(fixed_t v)
@@ -63,7 +67,11 @@ uint16_t CONSTFUNC FixedReciprocalBig(fixed_t v)
 {
 #if defined USE_LOOKUP_TABLE
 	int s = 31 - __builtin_clzl(v) - 15;
+#if defined __NGDEVKIT__
+	return (65536u + reciprocalHigh[(v >> s) - 32768]) >> s;
+#else
 	return reciprocalTable[v >> s] >> s;
+#endif
 #else
 	return 0xffffffffu / v;
 #endif
@@ -73,13 +81,18 @@ uint16_t CONSTFUNC FixedReciprocalBig(fixed_t v)
 fixed_t CONSTFUNC FixedReciprocalSmall(uint16_t v)
 {
 #if defined USE_LOOKUP_TABLE
+#if defined __NGDEVKIT__
+	return v < 32768 ? reciprocalLow[v] : 65536u + reciprocalHigh[v - 32768];
+#else
 	return reciprocalTable[v];
+#endif
 #else
 	return 0xffffffffu / v;
 #endif
 }
 
 
+#if !defined __NGDEVKIT__
 static const uint32_t reciprocalTable[65536] = {
 0,
 4294967295,
@@ -65618,3 +65631,4 @@ static const uint32_t reciprocalTable[65536] = {
 65538,
 65537
 };
+#endif

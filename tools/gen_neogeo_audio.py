@@ -47,6 +47,7 @@ DEFAULT_SOUNDFONTS = (
     Path("/usr/share/sounds/sf2/default-GM.sf2"),
     Path("/usr/share/sounds/sf2/TimGM6mb.sf2"),
     Path("/usr/share/sounds/sf3/default-GM.sf3"),
+    Path("/usr/share/soundfonts/FluidR3_GM.sf2"),
 )
 
 MUS_CONTROLLER_TO_MIDI = {
