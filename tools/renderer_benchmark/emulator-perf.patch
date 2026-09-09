@@ -1,0 +1,168 @@
+--- a/gngeo/src/emu.c
++++ b/gngeo/src/emu.c
+@@ -711,6 +711,9 @@
+ 
+ }
+ 
++static uint64_t harness_cycles;
++uint64_t harness_irq_cycles;
++
+ void cpu_68k_dpg_step(void) {
+ 	static Uint32 nb_cycle;
+ 	static Uint32 line_cycle;
+@@ -721,6 +724,7 @@
+ 		main_loop(); /* update event etc. */
+ 	}
+ 	cycle = cpu_68k_run_step();
++	harness_cycles += cycle;
+ 	add_bt(cpu_68k_getpc());
+ 	line_cycle += cycle;
+ 	nb_cycle += cycle;
+@@ -763,7 +767,15 @@
+ }
+ 
+ static uint32 fetch_register(uint32 num) {
+-	if (num < 16) {
++	if (num == 18) {
++		return harness_cycles >> 32;
++	} else if (num == 19) {
++		return harness_cycles;
++	} else if (num == 20) {
++		return harness_irq_cycles >> 32;
++	} else if (num == 21) {
++		return harness_irq_cycles;
++	} else if (num < 16) {
+ 		return regs.regs[num];
+ 	} else if (num == 16) {
+ 		return regs.sr.sr_int;
+@@ -775,6 +787,9 @@
+ }
+ 
+ static void store_register(uint32 num, uint32 value) {
++	if (num < 16) regs.regs[num] = value;
++	else if (num == 16) regs.sr.sr_int = value;
++	else if (num == 17) regs.pc = value;
+ }
+ 
+ struct emudbg_api_t emu_api = {
+--- a/gngeo/src/generator68k/reg68k.c
++++ b/gngeo/src/generator68k/reg68k.c
+@@ -6,6 +6,9 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <stdlib.h>
++#include <stdint.h>
++
++extern uint64_t harness_irq_cycles;
+ 
+ 
+ #include "reg68k.h"
+@@ -56,6 +59,7 @@
+ 
+   if (regs.pending && ((regs.sr.sr_int >> 8) & 7) < regs.pending)
+       reg68k_internal_autovector(regs.pending);
++  const int harness_in_irq = (regs.sr.sr_int & 0x0700) != 0;
+   
+   if (!(piib = cpu68k_iibtable[fetchword(regs.pc)]))
+       printf("Invalid instruction @ %08X [%04X]\n", (unsigned)regs.pc,
+@@ -67,6 +71,7 @@
+ 	     &ipc);
+   cpu68k_functable[fetchword(regs.pc) * 2 + 1] (&ipc);
+   clks = piib->clocks;
++  if (harness_in_irq) harness_irq_cycles += clks;
+ 
+   cpu68k_clocks += clks;
+   return clks;                  /* number of clocks done */
+--- a/emudbg/src/emudbg.c
++++ b/emudbg/src/emudbg.c
+@@ -37,6 +37,7 @@
+ #include <sys/types.h>
+ #include <sys/socket.h>
+ #include <netinet/in.h>
++#include <netinet/tcp.h>
+ #include <arpa/inet.h>
+ #define IOCTL ioctl
+ #define BYTES_AVAIL_T int
+@@ -82,7 +83,10 @@
+     listen_addr.sin_port = htons(DEFAULT_PORT);
+ 
+     ctx->listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
++    int reuse = 1;
++    setsockopt(ctx->listen_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+     r=bind(ctx->listen_socket, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
++    if (r < 0) { perror("harness bind 2159"); exit(1); }
+     // TODO: check return code
+     (void)r;
+     // printf("BOUND SOCKET: %x - %d (errno: %d)\n", ctx->listen_socket, r, EMUDBG_SOCKET_ERRNO);
+@@ -96,6 +100,7 @@
+     struct sockaddr client_addr;
+     socklen_t addrlen=sizeof(client_addr);
+     ctx->client_socket = accept(ctx->listen_socket, &client_addr, &addrlen);
++    setsockopt(ctx->client_socket, IPPROTO_TCP, TCP_NODELAY, &reuse, sizeof(reuse));
+     // printf("ACCEPTED CLIENT SOCKET: %x (errno: %d)\n", ctx->client_socket, EMUDBG_SOCKET_ERRNO);
+ 
+     return 0;
+--- a/emudbg/src/gdbserver.c
++++ b/emudbg/src/gdbserver.c
+@@ -143,9 +143,9 @@
+     char *addr_str=ctx->pkt_start+1;
+     int addr = (int)strtoul(addr_str, NULL, 16);
+     char *len_str=strchr(ctx->pkt_start,',')+1;
+-    int len = (int)strtoul(len_str, NULL, 10);
+-    // support up to 4bytes read
+-    static char buffer[9];
++    int len = (int)strtoul(len_str, NULL, 16);
++    static char buffer[513];
++    if (len < 1 || len > 256) return make_packet(ctx, "E01");
+     char *output=buffer;
+     for (int i=0; i<len; i++, addr++, output+=2) {
+         snprintf(output, 3, "%02x", ctx->debugger_impl->fetch_byte(addr));
+@@ -176,9 +176,35 @@
+ /// Continue execution
+ int process_c(struct emudbg_ctx_t *ctx)
+ {
++    ctx->next_cmd_ptr->next_run_command = 'c';
+     return 0;
+ }
+ 
++static int harness_write_memory(struct emudbg_ctx_t *ctx)
++{
++    unsigned addr, len;
++    char *data = strchr(ctx->pkt_start, ':');
++    if (!data || sscanf(ctx->pkt_start + 1, "%x,%x:", &addr, &len) != 2 ||
++        len > 256 || ctx->pkt_end - (data + 1) != len * 2)
++        return make_packet(ctx, "E01");
++    for (unsigned i = 0; i < len; i++) {
++        unsigned value;
++        if (sscanf(data + 1 + i * 2, "%2x", &value) != 1)
++            return make_packet(ctx, "E01");
++        ctx->debugger_impl->store_byte(addr + i, value);
++    }
++    return make_packet(ctx, "OK");
++}
++
++static int harness_write_register(struct emudbg_ctx_t *ctx)
++{
++    unsigned num, value;
++    if (sscanf(ctx->pkt_start + 1, "%x=%x", &num, &value) != 2 || num > 17)
++        return make_packet(ctx, "E01");
++    ctx->debugger_impl->store_register(num, value);
++    return make_packet(ctx, "OK");
++}
++
+ /// Detach from the machine
+ int process_D(struct emudbg_ctx_t *ctx)
+ {
+@@ -259,7 +285,11 @@
+ /// packet dispatcher
+ int process_packet(struct emudbg_ctx_t *ctx)
+ {
+-    if (STARTS_WITH(ctx->pkt_start, "qSupported:")) {
++    if (STARTS_WITH(ctx->pkt_start, "M")) {
++        return harness_write_memory(ctx);
++    } else if (STARTS_WITH(ctx->pkt_start, "P")) {
++        return harness_write_register(ctx);
++    } else if (STARTS_WITH(ctx->pkt_start, "qSupported:")) {
+         return process_qSupported(ctx);
+     } else if (STARTS_WITH(ctx->pkt_start, "qTStatus")) {
+         return process_qTStatus(ctx);
