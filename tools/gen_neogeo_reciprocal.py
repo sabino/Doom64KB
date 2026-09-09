@@ -19,7 +19,8 @@ def main():
         ("reciprocalLow", "uint32_t", values[:32768], '__attribute__((section(".text2")))'),
         ("reciprocalHigh", "uint16_t", upper, ""),
     ):
-        lines.append(f"static const {kind} {name}[32768] {attr} = {{")
+        # Defined only by m_fixed.c; renderer helpers share these ROM objects.
+        lines.append(f"const {kind} {name}[32768] {attr} = {{")
         lines.extend(
             ",".join(map(str, data[i:i + 16])) + ","
             for i in range(0, len(data), 16)

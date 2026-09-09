@@ -626,6 +626,10 @@ uint16_t validcount = 1;         // increment every time a check is made
 
 #define COLEXTRABITS (8 - 1)
 
+#if defined __NGDEVKIT__
+#include "neogeo/doom_reciprocal.h"
+#endif
+
 #if defined NEOGEO_SPRITE_MICROFB
 static angle16_t render_xtoviewangle[VIEWWINDOWWIDTH + 1];
 
@@ -2510,7 +2514,12 @@ static void R_RenderSegLoop(int16_t rw_x, boolean segtextured, boolean markfloor
 #endif
 #endif
 
+#if defined __NGDEVKIT__
+            /* Clamped endpoint scales and interpolation stay in 256..64*FRACUNIT. */
+            dcvars.fracstep = NG_ColumnReciprocal((uint32_t)loop_rw_scale);
+#else
             dcvars.fracstep = FixedReciprocal((uint32_t)loop_rw_scale) >> COLEXTRABITS;
+#endif
         }
 
         // draw the wall tiers
