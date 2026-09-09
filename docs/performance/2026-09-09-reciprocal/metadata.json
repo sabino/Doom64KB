@@ -1,0 +1,298 @@
+{
+  "schema": 1,
+  "description": "Posts + Bounded Reciprocal vs-baseline; renderer microbenchmark, not end-to-end FPS or hardware bus timing",
+  "source_commits": {
+    "baseline": "f862ec0f6da0b4422277751c37fd03ca5a5ad1fe",
+    "candidate": "9271d32aec0e54494b314961ed191e4bee876c56",
+    "gngeo": "7709e966418a7e9f2e6aa4585ac5f41e2c4ccfb7",
+    "emudbg": "1bfd49fe87bf662e39a894ac0db23d589796dbf2"
+  },
+  "source_provenance_note": "Measured posts plus bounded reciprocal snapshot matches committed HEAD 9271d32aec0e54494b314961ed191e4bee876c56; reciprocal implementation commit 7c4a774827ebfc1c9581de38d5c5ca456baa77d3. Original fills and quality modes; outline disabled; rejected cache/opaque-skip excluded. Existing ELF and all ROM inputs are byte-identical; no new rebuild performed.",
+  "manifests": {
+    "baseline": {
+      "game.elf": "eccc8836e0d996611f486a5e5aa5862f1ba8304147d6ef1acf6f08541505bbfd",
+      "rom/aes.zip": "9a324228c682cac8611791154a5869be643b3b8dbf9853c8e0c4428fd1fa7e86",
+      "rom/doom64kb-c1.c1": "d403245a13200338d35da332e37ec823645a0c01fe0528ac12f74a27ee972561",
+      "rom/doom64kb-c2.c2": "27bc79eecf859ddcffe643e7ec2b49d561b9747bb0f785e73af1e9e1aa24db5d",
+      "rom/doom64kb-m1.m1": "311a4de86c55b34367289d8e0e935a7929f0884404dd5fbec3a13f9dba1fb038",
+      "rom/doom64kb-p1.p1": "c812f767609fcabeddc326abce97cbbe9f823bb0ff8c7f4bb32434f19e2e7dee",
+      "rom/doom64kb-p2.p2": "51faed6ea495268bfb910c10cd277dc1ee5ab730a4e62cc8bc7de33801fdd587",
+      "rom/doom64kb-s1.s1": "25779075e9874643237f2af82a163276201082e46ec7f12fe767d2b275be1c53",
+      "rom/doom64kb-v1.v1": "90030fd9c2a6869451456e898fe0bc194fb13d31bc5ab18ad7da4d93533ac196",
+      "rom/doom64kb.zip": "cd6d89633ebe8840672c2a8683d18af56af9ae9adbf2dd2006646820802def1d",
+      "rom/gngeo_data.zip": "c2beea32f8431e232460788a840a6491ab8d413f17c69208f2fbe6534dafc074",
+      "rom/neogeo.xml": "8e3af234570cb0f6326f88118ec043b48149c1596d80c506fc054aa691aa5536",
+      "rom/neogeo.zip": "75bfb4ffbfd5f91f4f7bbc71275e0c5a9f7b9079b45a99bb7ef722f86fd2cb71",
+      "emulator": "4da9aa81f3f93c7c555671c543bfe2d768c04333600e8fd373fe38231ec81775"
+    },
+    "candidate": {
+      "game.elf": "43cbfd2d28ffdf882a6ef3591e0dfcde8e15598f7637bb63ed71b22a83291de4",
+      "rom/aes.zip": "9a324228c682cac8611791154a5869be643b3b8dbf9853c8e0c4428fd1fa7e86",
+      "rom/doom64kb-c1.c1": "d403245a13200338d35da332e37ec823645a0c01fe0528ac12f74a27ee972561",
+      "rom/doom64kb-c2.c2": "27bc79eecf859ddcffe643e7ec2b49d561b9747bb0f785e73af1e9e1aa24db5d",
+      "rom/doom64kb-m1.m1": "311a4de86c55b34367289d8e0e935a7929f0884404dd5fbec3a13f9dba1fb038",
+      "rom/doom64kb-p1.p1": "4042b8490bb288851ce9b5db74faa92012e1ca7c41b248601b3ba1c7c28e51bd",
+      "rom/doom64kb-p2.p2": "51faed6ea495268bfb910c10cd277dc1ee5ab730a4e62cc8bc7de33801fdd587",
+      "rom/doom64kb-s1.s1": "25779075e9874643237f2af82a163276201082e46ec7f12fe767d2b275be1c53",
+      "rom/doom64kb-v1.v1": "90030fd9c2a6869451456e898fe0bc194fb13d31bc5ab18ad7da4d93533ac196",
+      "rom/doom64kb.zip": "5adcb1f671fdf55614a471ee44699e4ed1a1a76e5dff4f8479202451d834bd5e",
+      "rom/gngeo_data.zip": "d29a304cfdc1e920315b604e5464215dbcf930cf7876b94a96a43c495254373f",
+      "rom/neogeo.xml": "3d9d12b5f29ffea0682a8eb7e2a70b6828865015e45f7465c073f502c9fa1c6b",
+      "rom/neogeo.zip": "75bfb4ffbfd5f91f4f7bbc71275e0c5a9f7b9079b45a99bb7ef722f86fd2cb71",
+      "emulator": "4da9aa81f3f93c7c555671c543bfe2d768c04333600e8fd373fe38231ec81775"
+    }
+  },
+  "commands": {
+    "baseline": [
+      "xvfb-run",
+      "-a",
+      "-s",
+      "-screen 0 640x480x24 -nolisten tcp",
+      "<private-instrumented-gngeo>",
+      "--debug",
+      "--68kclock=0",
+      "--z80clock=0",
+      "--no-pal",
+      "--no-raster",
+      "--no-sound",
+      "--no-joystick",
+      "--no-autoframeskip",
+      "--no-vsync",
+      "--no-fullscreen",
+      "-b",
+      "soft",
+      "--scale=1",
+      "--system=home",
+      "--country=usa",
+      "-i",
+      "<snapshot-rom-directory>",
+      "-d",
+      "<snapshot-gngeo_data.zip>",
+      "doom64kb"
+    ],
+    "candidate": [
+      "xvfb-run",
+      "-a",
+      "-s",
+      "-screen 0 640x480x24 -nolisten tcp",
+      "<private-instrumented-gngeo>",
+      "--debug",
+      "--68kclock=0",
+      "--z80clock=0",
+      "--no-pal",
+      "--no-raster",
+      "--no-sound",
+      "--no-joystick",
+      "--no-autoframeskip",
+      "--no-vsync",
+      "--no-fullscreen",
+      "-b",
+      "soft",
+      "--scale=1",
+      "--system=home",
+      "--country=usa",
+      "-i",
+      "<snapshot-rom-directory>",
+      "-d",
+      "<snapshot-gngeo_data.zip>",
+      "doom64kb"
+    ]
+  },
+  "environment": {
+    "HOME": "<fresh-private-directory-per-repeat>",
+    "TMPDIR": "<private-directory>",
+    "SDL_AUDIODRIVER": "dummy",
+    "SDL_RENDER_DRIVER": "software",
+    "WAYLAND_DISPLAY": "unset"
+  },
+  "counter": "sum(cpu_68k_run_step()); generator68k static piib->clocks; 64-bit",
+  "irq_classifier": "SR.IPL != 0, sampled after pending delivery before instruction; no renderer masking found in inspected paths",
+  "clock": {
+    "68kclock_adjust_percent": 0,
+    "debug_timeslice_cycles": 200000,
+    "nominal_hz": 12000000
+  },
+  "scene": {
+    "maps": [
+      1,
+      2
+    ],
+    "modes": {
+      "Low": [
+        40,
+        28
+      ],
+      "Mid": [
+        53,
+        37
+      ],
+      "High": [
+        80,
+        56
+      ]
+    },
+    "relative_yaws_degrees": [
+      0,
+      90,
+      180,
+      270
+    ],
+    "skill": 2,
+    "gametic": 2,
+    "setup_ticks": 1,
+    "samples_per_yaw": 3,
+    "fresh_boot_repeats": 2,
+    "mobj_angle_offset": 32,
+    "column_stride": 56
+  },
+  "validation": {
+    "paired_samples": 144,
+    "exact_repeats": true,
+    "poses_match": true,
+    "active_pixel_hashes_match": true,
+    "physical_framebuffer_hashes_match": true
+  },
+  "harness_sha256": {
+    "bench.py": "1f6cb436486cf1b1130414c54d2051769a3661914312cc87736095ed244566ea",
+    "compare.py": "f4856a6248600e3df58121978180f790de537a886a6f73a714b65bdc611fde7d",
+    "build-emulator.sh": "29a8348d6bcd002196585a5df4a2f5f7677b263280aa017e23aabfa2e57dbba3",
+    "emulator-perf.patch": "c649aa049b5cf8eee2bc21b99abe2f8afb219a792094558b6a9bfef5d0dbbf84",
+    "README.md": "a62d82c4cedc1c62f265bf6a568dbbaee31251238defd107404b6c45f842d28b"
+  },
+  "candidate_source": {
+    "parent_commit": "282df55cdf8adb863980c1bb36b7fd1126373962",
+    "snapshot_files_sha256": {
+      "r_draw.c": "606cf1dd106921829f9c4e76a230c0069cb80ecb6db7a0e0a4fbf4cf00d930bd",
+      "neogeo/doom_reciprocal.h": "0f15f994e69c2495611515b6a3a0bd0abb08aa910483c564637ed23991e05860",
+      "tools/gen_neogeo_reciprocal.py": "55821c7a74a81ca75358e249f227f25d4573f04d23db6f847a1db163a19c2527",
+      "tools/verify_neogeo_reciprocal.py": "503f07ab2c7744ff5326819f8aafb3422919ee7ac4fddb4ab295ec196d83630d",
+      "neogeo/assets/generated/doom_reciprocal.h": "794a468213c1eef5b475f9370085af862a60cb967be3814b0d026e6b30c93a12",
+      "m_fixed.c": "2e32c235a0ee258875e92360c003d3e959e9177a23a53dcb2b473f8df85704fd",
+      "bneogeo.sh": "340f27c347b604b2e53ac920214410a7d00b82560fc6cddb4227be4f72745026"
+    },
+    "generated_table_source": "Captured from frozen candidate neogeo/assets/generated directory.",
+    "final_rebuild_binary_identity_verified": null,
+    "commit": "9271d32aec0e54494b314961ed191e4bee876c56",
+    "git_tree": "51cba8736bae5f220e5f473089b49fa318a72b0a",
+    "implementation_commit": "7c4a774827ebfc1c9581de38d5c5ca456baa77d3",
+    "current_committed_build_binary_identity_verified": true,
+    "final_rebuild_note": "No new rebuild performed; existing current binaries and committed source independently verified against measured snapshot."
+  },
+  "parent_reported_host_validation": {
+    "legal_scales": 4194049,
+    "range_inclusive": [
+      256,
+      4194304
+    ],
+    "compilers": [
+      "GCC",
+      "Clang"
+    ],
+    "reported_result": "pass",
+    "independently_run_by_benchmark_investigator": false
+  },
+  "committed_build_verification": {
+    "verified": true,
+    "verified_head": "9271d32aec0e54494b314961ed191e4bee876c56",
+    "verified_tree": "51cba8736bae5f220e5f473089b49fa318a72b0a",
+    "implementation_commit": "7c4a774827ebfc1c9581de38d5c5ca456baa77d3",
+    "all_files_byte_identical": true,
+    "new_rebuild_performed": false,
+    "method": "Current ELF and every ROM input, including ZIP containers, match the measured snapshot byte-for-byte. Captured source matches HEAD blobs; generated table matches current output. No new rebuild required or claimed.",
+    "files": {
+      "game.elf": {
+        "sha256": "43cbfd2d28ffdf882a6ef3591e0dfcde8e15598f7637bb63ed71b22a83291de4",
+        "byte_identical": true
+      },
+      "rom/aes.zip": {
+        "sha256": "9a324228c682cac8611791154a5869be643b3b8dbf9853c8e0c4428fd1fa7e86",
+        "byte_identical": true
+      },
+      "rom/doom64kb-c1.c1": {
+        "sha256": "d403245a13200338d35da332e37ec823645a0c01fe0528ac12f74a27ee972561",
+        "byte_identical": true
+      },
+      "rom/doom64kb-c2.c2": {
+        "sha256": "27bc79eecf859ddcffe643e7ec2b49d561b9747bb0f785e73af1e9e1aa24db5d",
+        "byte_identical": true
+      },
+      "rom/doom64kb-m1.m1": {
+        "sha256": "311a4de86c55b34367289d8e0e935a7929f0884404dd5fbec3a13f9dba1fb038",
+        "byte_identical": true
+      },
+      "rom/doom64kb-p1.p1": {
+        "sha256": "4042b8490bb288851ce9b5db74faa92012e1ca7c41b248601b3ba1c7c28e51bd",
+        "byte_identical": true
+      },
+      "rom/doom64kb-p2.p2": {
+        "sha256": "51faed6ea495268bfb910c10cd277dc1ee5ab730a4e62cc8bc7de33801fdd587",
+        "byte_identical": true
+      },
+      "rom/doom64kb-s1.s1": {
+        "sha256": "25779075e9874643237f2af82a163276201082e46ec7f12fe767d2b275be1c53",
+        "byte_identical": true
+      },
+      "rom/doom64kb-v1.v1": {
+        "sha256": "90030fd9c2a6869451456e898fe0bc194fb13d31bc5ab18ad7da4d93533ac196",
+        "byte_identical": true
+      },
+      "rom/doom64kb.zip": {
+        "sha256": "5adcb1f671fdf55614a471ee44699e4ed1a1a76e5dff4f8479202451d834bd5e",
+        "byte_identical": true
+      },
+      "rom/gngeo_data.zip": {
+        "sha256": "d29a304cfdc1e920315b604e5464215dbcf930cf7876b94a96a43c495254373f",
+        "byte_identical": true
+      },
+      "rom/neogeo.xml": {
+        "sha256": "3d9d12b5f29ffea0682a8eb7e2a70b6828865015e45f7465c073f502c9fa1c6b",
+        "byte_identical": true
+      },
+      "rom/neogeo.zip": {
+        "sha256": "75bfb4ffbfd5f91f4f7bbc71275e0c5a9f7b9079b45a99bb7ef722f86fd2cb71",
+        "byte_identical": true
+      },
+      "emulator": {
+        "sha256": "4da9aa81f3f93c7c555671c543bfe2d768c04333600e8fd373fe38231ec81775",
+        "byte_identical": true
+      }
+    },
+    "source_files": {
+      "r_draw.c": {
+        "sha256": "606cf1dd106921829f9c4e76a230c0069cb80ecb6db7a0e0a4fbf4cf00d930bd",
+        "matches_current_file": true,
+        "matches_committed_blob": true
+      },
+      "neogeo/doom_reciprocal.h": {
+        "sha256": "0f15f994e69c2495611515b6a3a0bd0abb08aa910483c564637ed23991e05860",
+        "matches_current_file": true,
+        "matches_committed_blob": true
+      },
+      "tools/gen_neogeo_reciprocal.py": {
+        "sha256": "55821c7a74a81ca75358e249f227f25d4573f04d23db6f847a1db163a19c2527",
+        "matches_current_file": true,
+        "matches_committed_blob": true
+      },
+      "tools/verify_neogeo_reciprocal.py": {
+        "sha256": "503f07ab2c7744ff5326819f8aafb3422919ee7ac4fddb4ab295ec196d83630d",
+        "matches_current_file": true,
+        "matches_committed_blob": true
+      },
+      "neogeo/assets/generated/doom_reciprocal.h": {
+        "sha256": "794a468213c1eef5b475f9370085af862a60cb967be3814b0d026e6b30c93a12",
+        "matches_current_file": true,
+        "matches_committed_blob": null
+      },
+      "m_fixed.c": {
+        "sha256": "2e32c235a0ee258875e92360c003d3e959e9177a23a53dcb2b473f8df85704fd",
+        "matches_current_file": true,
+        "matches_committed_blob": true
+      },
+      "bneogeo.sh": {
+        "sha256": "340f27c347b604b2e53ac920214410a7d00b82560fc6cddb4227be4f72745026",
+        "matches_current_file": true,
+        "matches_committed_blob": true
+      }
+    }
+  }
+}

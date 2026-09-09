@@ -55,6 +55,9 @@
 
 #include "globdata.h"
 
+#if defined __NGDEVKIT__
+#include "neogeo/doom_projection.h"
+#endif
 
 #if VIEWWINDOWHEIGHT < 126
 typedef int8_t height_t;
@@ -623,6 +626,10 @@ uint16_t validcount = 1;         // increment every time a check is made
 
 #define COLEXTRABITS (8 - 1)
 
+#if defined __NGDEVKIT__
+#include "neogeo/doom_reciprocal.h"
+#endif
+
 #if defined NEOGEO_SPRITE_MICROFB
 static angle16_t render_xtoviewangle[VIEWWINDOWWIDTH + 1];
 
@@ -748,17 +755,6 @@ static uint32_t mulu(uint16_t a, uint16_t b) {
 	);
 	return result;
 #endif
-}
-
-
-/* Exact high word of a 16x32 product.  Wall distance is non-negative and the
- * tangent tables hold positive quadrant magnitudes, so texture projection does
- * not need the generic three-multiply 32x32 helper on a 68000.
- */
-static uint16_t mulu16x32hi(uint16_t a, uint32_t b)
-{
-	const uint32_t low = mulu(a, (uint16_t)b);
-	return (uint16_t)((low >> 16) + mulu(a, (uint16_t)(b >> 16)));
 }
 
 
@@ -1306,14 +1302,28 @@ static void R_DrawMaskedColumn(R_DrawColumn_f colfunc, draw_column_vars_t *dcvar
     const height_t fclip_x = mfloorclip[dcvars->x];
     const height_t cclip_x = mceilingclip[dcvars->x];
 
+#if defined __NGDEVKIT__
+    if (fclip_x <= cclip_x + 1)
+        return;
+#endif
+
     while (column->topdelta != 0xff)
     {
         // calculate unclipped screen coordinates for post
+#if defined __NGDEVKIT__
+        const uint32_t topscreen = (uint32_t)sprtopscreen
+            + NG_PostProduct(column->topdelta, (uint32_t)spryscale);
+        const uint32_t bottomscreen = topscreen
+            + NG_PostProduct(column->length, (uint32_t)spryscale);
+        int16_t yh = (int32_t)(bottomscreen - 1u) >> FRACBITS;
+        int16_t yl = (int32_t)(topscreen + (uint32_t)(FRACUNIT - 1)) >> FRACBITS;
+#else
         const int32_t topscreen = sprtopscreen + spryscale*column->topdelta;
         const int32_t bottomscreen = topscreen + spryscale*column->length;
 
         int16_t yh = (bottomscreen-1)>>FRACBITS;
         int16_t yl = (topscreen+FRACUNIT-1)>>FRACBITS;
+#endif
 
         if (yh >= fclip_x)
             yh = fclip_x - 1;
@@ -2497,10 +2507,19 @@ static void R_RenderSegLoop(int16_t rw_x, boolean segtextured, boolean markfloor
 			int16_t ang = (angle16_t)(rw_centerangle + R_XTOVIEWANGLE(rw_x)) >> ANGLETOFINESHIFT_16;
 			fixed_t tan = finetangent[ang];
 			texturecolumn = rw_offset;
+#if defined __NGDEVKIT__
+			texturecolumn -= NG_ProjectionProductHigh(rw_distance, tan);
+#else
 			texturecolumn -= (rw_distance * tan) >> FRACBITS;
 #endif
+#endif
 
+#if defined __NGDEVKIT__
+            /* Clamped endpoint scales and interpolation stay in 256..64*FRACUNIT. */
+            dcvars.fracstep = NG_ColumnReciprocal((uint32_t)loop_rw_scale);
+#else
             dcvars.fracstep = FixedReciprocal((uint32_t)loop_rw_scale) >> COLEXTRABITS;
+#endif
         }
 
         // draw the wall tiers
