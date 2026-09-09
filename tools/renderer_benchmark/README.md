@@ -48,7 +48,8 @@ Outputs must not already exist. Each input directory must contain a matching
 `DOOM64KB.elf` and `rom/` (including doom64kb.zip and its matching gngeo_data.zip).
 Inputs are snapshotted before emulation. Use the same emulator binary for both.
 The archive is what GnGeo loads; ensure its P1/P2 match the loose files and ELF.
-The tested ROMs are projection-only, not the deferred direct-ROM experiment.
+Published runs cover the projection, masked-post and bounded-reciprocal changes,
+not the deferred direct-ROM experiment.
 
 Quick smoke: append `--maps 1 --modes High --angles 0 --samples 2 --repeats 1`.
 Use the default full matrix for `compare.py`, which fails closed on incomplete
@@ -141,3 +142,10 @@ Do not expose it on a network or treat this as production protocol hardening.
 Each owned emulator process group is terminated and reaped before the next
 launch; no broad process matching or system/user service management is used.
 Use a normal Python interpreter (not `python -O`), since validation uses asserts.
+
+## Recorded Runs
+
+- [Exact wall projection](../../docs/performance/2026-09-08-projection/README.md)
+- [Masked-post projection](../../docs/performance/2026-09-09-posts/README.md)
+- [Bounded wall reciprocals and combined result](../../docs/performance/2026-09-09-reciprocal/README.md)
+- [Offline tile-pattern feasibility study](../../docs/performance/2026-09-09-tile-patterns/README.md)
